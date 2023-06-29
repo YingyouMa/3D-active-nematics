@@ -1,3 +1,6 @@
+# Read lammps dump file into pandas in Python.
+# Return the information of each unit and simulation box.
+
 from pathlib import Path
 
 import numpy as np
