@@ -5,11 +5,16 @@
 # --------------------------------------------------------
 # Yingyou Ma, Physics @ Brandeis, 2023
 # Algorithm provided by Matthew Peterson
+# --------------------------------------------------------
+
+# -------------------------------
+# The function of diagonalisation
+# -------------------------------
 
 import numpy as np
 import time
 
-def main(qtensor, if_time=False):
+def func_diag(qtensor, if_time=False):
   """
   Function returns the eigenvalues and eigenvectors of Q as the input array.
 
@@ -58,11 +63,43 @@ def main(qtensor, if_time=False):
   n = temp / np.linalg.norm(temp, axis = 0)
 
   if if_time == True:
-    print(round(time.time()-start, 2), 's')
+    print(str(round(time.time()-start, 2)) + 's')
 
   return S, n
+
+# -------------------------------------------------------------------
+# The code to find all the undiagnolised files and to diagnolise them
+# -------------------------------------------------------------------
+
+def run(density, length, stiffness, activity, seed, size=128, cover=False):
   
+  address = f"data/density_{density}0/length_{length}/stiffness_{stiffness}/activity_{activity}/seed_{seed}/"
+  files = glob.glob( address + f'/coarse/result_{size}/*.h5py')
+  frames = np.array([int(re.findall(r'\d+', file)[-2]) for file in files])
+  if len(frames) == 0:
+      raise NameError('no files')
+  frames = np.sort(frames)
   
+  solved_files = glob.glob( address + f'/diagonal/{size}/S_*.npy')
+  solved_frames = np.array([int(re.findall(r'\d+', file)[-1]) for file in solved_files])
+  
+  for frame in frames:
+      if frame in solved_frames and cover == False:
+          print(f'{frame} already analyzed')
+      else:
+          analyze(frame, address, size)
+
+density_list = [0.7]
+length_list = [50]
+stiffness_list = [100, 175, 250, 375, 500, 625, 750, 875, 1000, 1125, 1250, 1375, 1500]
+activity_list = [1,2,5,7.5,10]
+seed_list = [1000]
+width_list = [200]
+
+for (density, length, stiffness, activity, seed, width) in product(density_list, length_list, stiffness_list, activity_list, seed_list, width_list):
+    print(density, length, stiffness, activity, seed)
+    run(density, length, stiffness, activity, seed, size=400)
+
     
   
   
