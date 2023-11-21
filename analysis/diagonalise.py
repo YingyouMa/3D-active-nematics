@@ -1,6 +1,8 @@
-# -------------------------------------------
+# --------------------------------------------------------
 # Diagonalisation of Q tensor of 3D nematics.
-# -------------------------------------------
+# Currently it onply provides the uniaxial information.
+# Will be updated to derive biaxial analysis in the future
+# --------------------------------------------------------
 # Yingyou Ma, Physics @ Brandeis, 2023
 # Algorithm provided by Matthew Peterson
 
