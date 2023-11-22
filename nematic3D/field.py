@@ -10,7 +10,8 @@ def diagonalize(qtensor):
   Diagonalization of Q tensor in 3D nematics.
   Currently it onply provides the uniaxial information.
   Will be updated to derive biaxial analysis in the future.
-  Algorythm provided by Matthew Peterson: 
+  Algorythm provided by Matthew Peterson:
+  https://github.com/YingyouMa/3D-active-nematics/blob/405c8d54d797cc39c1f14c82112cb43d304ef16c/reference/order_parameter_calculation.pdf
 
   Parameters
   ----------
