@@ -5,9 +5,16 @@
 
 import numpy as np
 
+# --------------------------------------------------------
+# Diagonalization of Q tensor in 3D nematics.
+# Will be updated to derive biaxial analysis in the future
+# Algorythm provided by Matthew Peterson:
+# https://github.com/YingyouMa/3D-active-nematics/blob/405c8d54d797cc39c1f14c82112cb43d304ef16c/reference/order_parameter_calculation.pdf
+# --------------------------------------------------------
+
 def diagonalize(qtensor):
   """
-  Diagonalization of Q tensor in 3D nematics.
+  
   Currently it onply provides the uniaxial information.
   Will be updated to derive biaxial analysis in the future.
   Algorythm provided by Matthew Peterson:
@@ -56,6 +63,29 @@ def diagonalize(qtensor):
 
   return S, n
 
+#
+#
+#
+
+def select_subbox(subbox_indices, box_size, margin_ratio=0):
+
+  subbox  = subbox_indices
+  N, M, L = box_size
+
+  if margin_ratio != 0:
+      xrange, yrange, zrange = subbox_indices[:,1] - subbox_indices[:,0]
+      margin = ( np.array([xrange, yrange, zrange]) * margin_ratio/2 ).astype(int)
+      subbox[:,0] -= margin
+      subbox[:,1] += margin
+
+  xmin, ymin, zmin = subbox[:,0]
+  xmax, ymax, zmax = subbox[:,1]
+
+  sl0 = np.array(range(xmin, xmax+1)).reshape(-1,1, 1)%N
+  sl1 = np.array(range(ymin, ymax+1)).reshape(1,-1, 1)%M
+  sl2 = np.array(range(zmin, zmax+1)).reshape(1,1,-1)%L
+
+  return [sl0, sl1, sl2]
 
     
   
