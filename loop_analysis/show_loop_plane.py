@@ -1,34 +1,34 @@
 import numpy as np
 from mayavi import mlab
 
-def main(loop_box_coord, n_whole, width, margin_ratio=0.6, upper=0, down=0, norm_index=0):
+from nematics3D.field import select_subbox
 
-    dmean, d_box, grid, norm_vec, n_box = setup(loop_box_coord, n_whole, width, margin_ratio=margin_ratio)
+def main(loop_box_indices, n_whole, width, margin_ratio=0.6, upper=0, down=0, norm_index=0):
+
+    dmean, d_box, grid, norm_vec, n_box = setup(loop_box_indices, 
+                                                n_whole, 
+                                                width, 
+                                                margin_ratio=margin_ratio
+                                                )
     
     down, upper = np.sort([down, upper])
     if upper==down:
         upper = dmean + 0.5
         down  = dmean - 0.5
+    else:
+        upper = dmean + upper
+        down  = dmean + down
 
-    make_plot(upper, down, d_box, grid, norm_vec, n_box)
+    mlab.figure(bgcolor=(1,1,1))
+    plot_plane(upper, down, d_box, grid, norm_vec, n_box)
 
-def setup(loop_box_coord, n_whole, width, margin_ratio=0.6, norm_index=0):
+def setup(loop_box_indices, n_whole, width, margin_ratio=0.6, norm_index=0):
 
     # Find the region enclosing the loop. The size of the region is controlled by margin_ratio
-    xrange, yrange, zrange = loop_box_coord[:,1] - loop_box_coord[:,0]
-    margin = ( np.array([xrange, yrange, zrange]) * margin_ratio/2 ).astype(int)
-    loop_box_coord[:,0] -= margin
-    loop_box_coord[:,1] += margin
+    N = np.shape(n_whole)[0]
+    sl0, sl1, sl2 = select_subbox(loop_box_indices, [N, N, N], margin_ratio=margin_ratio)
 
-    # Consider the periodical boundary condition (index out of the simulation box)
-    xmin, ymin, zmin = loop_box_coord[:,0]
-    xmax, ymax, zmax = loop_box_coord[:,1]
-    N = np.shape(S)[0]
-    sl0 = np.array(range(xmin, xmax+1)).reshape(-1,1, 1)%N
-    sl1 = np.array(range(ymin, ymax+1)).reshape(1,-1, 1)%N
-    sl2 = np.array(range(zmin, zmax+1)).reshape(1,1,-1)%N
-
-    # Select the local n and S around the loop
+    # Select the local n around the loop
     n_box = n_whole[sl0,sl1,sl2]
 
     # Derive and take the average of the local Q tensor with the director field around the loop
@@ -49,9 +49,9 @@ def setup(loop_box_coord, n_whole, width, margin_ratio=0.6, norm_index=0):
     norm_vec = eigvec[norm_index]
 
     # Build the grid for visualization
-    x = np.arange( loop_box_coord[0][0], loop_box_coord[0][-1]+1)/N*width
-    y = np.arange( loop_box_coord[1][0], loop_box_coord[1][-1]+1)/N*width
-    z = np.arange( loop_box_coord[2][0], loop_box_coord[2][-1]+1)/N*width
+    x = np.arange( loop_box_indices[0][0], loop_box_indices[0][-1]+1)/N*width
+    y = np.arange( loop_box_indices[1][0], loop_box_indices[1][-1]+1)/N*width
+    z = np.arange( loop_box_indices[2][0], loop_box_indices[2][-1]+1)/N*width
     grid = np.meshgrid(x,y,z, indexing='ij')
 
     # Find the height of the middle cross section: dmean
@@ -60,7 +60,7 @@ def setup(loop_box_coord, n_whole, width, margin_ratio=0.6, norm_index=0):
 
     return dmean, d_box, grid, norm_vec, n_box
 
-def make_plot(upper, down, d_box, grid, norm_vec, n_box):
+def plot_plane(upper, down, d_box, grid, norm_vec, n_box):
 
     index = (d_box<upper) * (d_box>down)
     index = np.where(index == True)
@@ -83,3 +83,5 @@ def make_plot(upper, down, d_box, grid, norm_vec, n_box):
     vector.glyph.color_mode = 'color_by_scalar'
     lut_manager = mlab.colorbar(object=vector)
     lut_manager.data_range=(0,1)
+
+def plot_loop():
