@@ -28,16 +28,16 @@ fix 2 all langevin 1.0 1.0 {damp} {seed}
 # Output
 # ===============================================
 
-dump 1 all custom/mpiio {dump_freq} {dump_path} &
+dump 1 all custom/mpiio {dump_intv} {dump_path} &
     id mol xu yu zu
 
-restart {archive_freq} restart/save.%.dat.1 restart/save.%.dat.2
+restart {archive_intv} restart/save.%.dat.1 restart/save.%.dat.2
 
 # ===============================================
 # Run the Simulation
 # ===============================================
 
 timestep {timestep}
-thermo {dump_freq}
+thermo {dump_intv}
 run {max_step} upto
 
