@@ -25,7 +25,7 @@ parser.add_argument("--name") 											# name
 parser.add_argument("--sig", default=2) 							# sigma for Gaussian filter
 parser.add_argument("--N", default=300, type=int)					# initial coarse-grained grid dimensions
 parser.add_argument("--N_trunc", default=128, type=int) 			# truncated wave number
-parser.add_argument("--if_IFFT", default=None, type=bool)			# if inverse Fourier transform the data
+parser.add_argument("--if_IFFT", default=True, type=bool)			# if inverse Fourier transform the data
 parser.add_argument("--N_out", default=128, type=int)				# the final grid dimensions in real space
 parser.add_argument("--suffix", default=".mpiio.data", type=str)	# the suffix of dump file names
 args = parser.parse_args()
@@ -118,7 +118,7 @@ def kernal_fft(fp, sig, L):
 def main(stiffness, activity, name):
     print(f'... Start coarse graining k={stiffness} a={activity} name={name}')
     
-    address = f"../data/density_{DENSITY}/length_{NATOMS}/stiffness_{stiffness}/activity_{activity}/{name}/"
+    address = f"../data/density_{DENSITY:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}/"
     path = address + 'dump/'
     save_path = address+'coarse/'
     
@@ -238,4 +238,4 @@ def main(stiffness, activity, name):
                
         print(t, round(time.time()-start,2), 's')
 
-main(args.k, args.a, args.n)
+main(args.k, args.a, args.name)

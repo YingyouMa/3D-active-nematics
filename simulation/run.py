@@ -20,7 +20,7 @@ BOND_LENGTH     = 0.5       # Equilibrium length of bond
 
 # Constants of simulation
 DUMP_N          = 200       # Total number of dumping files
-ARCHIVE_INTV    = 120_000   # Interval of storing the restart files
+ARCHIVE_INTV    = 300_000   # Interval of storing the restart files
 DUMP_BASE       = 500       # Set the dumping intervals as multipole of DUMP_BASE
 TIME_STEP       = 0.001
 
