@@ -19,10 +19,11 @@ NATOMS          = 50        # Amount of monomers per filament
 DAMP            = 10        # Damping coefficient (one over gamma)
 BOND_LENGTH     = 0.5       # Equilibrium length of bond
 
-# Constants of dump and restart files
+# Constants of simulation
 DUMP_N          = 200       # Total number of dumping files
 ARCHIVE_INTV    = 120_000   # Interval of storing the restart files
 DUMP_BASE       = 500       # Set the dumping intervals as multipole of DUMP_BASE
+TIME_STEP       = 0.001
 
 
 # Loading templates
@@ -46,25 +47,29 @@ print(check_table)
 parameters = np.array(pd.read_csv("parameters.csv"))
 
 # The directory's name of upcoming simulations
-name = '1'
+name_list = np.arange(5)
 
 # The function to run the simulation of each set of parameters
-def main(parameter):
+def main(parameter, name):
 
     # Load the parameters and calculate the dump interval
-    stiffness, activity, max_step = parameter
-    dump_intv = max_step/DUMP_N
+    stiffness, activity, max_time = parameter
+    stiffness =int(stiffness)
+    dump_intv = max_time/TIME_STEP/DUMP_N
     dump_intv = round(dump_intv / DUMP_BASE) * DUMP_BASE
-    max_step  = dump_intv * DUMP_N
+    max_step  = int( dump_intv * DUMP_N )
 
     job_name = f"Nematics3D_k{stiffness}_a{activity}_n{name}"
-    path = ROOT / f"data/density_{DENSITY：0.2f}/stiffness_{stiffness}/activity_{activity}/{name}"
+    path = ROOT / f"data/density_{DENSITY:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}"
 
     print(f"Checking job {job_name}")
 
     if job_name in check_table['NAME'].values:
         print(f"  Job '{job_name}' already running")
-        continue
+        return 0
+
+    path.mkdir(exist_ok=True, parents=True)
+    os.chdir(path)
 
     # Check if it's a new simulation
     save_version = 1
@@ -99,15 +104,16 @@ def main(parameter):
             activity=int(activity/DAMP),
             damp=DAMP,
             tau=1,
-            dump_intv=DUMP_INTV,
+            dump_intv=dump_intv,
             archive_intv=ARCHIVE_INTV,
             save_version=save_version,
             dump_path="dump/*.mpiio.data",
-            timestep=1e-3,
-            max_step=MAX_STEP,
+            timestep=TIME_STEP,
+            max_step=max_step,
         )
         f.write(contents)  
 
+    # Create the sbatch file and the function creating the initial filaments
     create_poly_cmd = f"python3 {CREATE_POLY_PATH} -w {WIDTH} -n {NATOMS} -v {DENSITY} -b {BOND_LENGTH}"
     with open("submit.sh", "w") as f:
         contents = sbatch_template.format(
@@ -117,6 +123,12 @@ def main(parameter):
         )
         f.write(contents) 
 
+    # RUN!
     call("sbatch submit.sh".split())
 
     os.chdir(ROOT) 
+
+# Run each simulation
+for name in name_list:
+    for parameter in parameters:
+        main(parameter, name)
