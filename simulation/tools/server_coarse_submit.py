@@ -5,12 +5,12 @@ import glob
 import re
 import numpy as np
 
-address = '../data/width_200/viscosity_10/density_0.70/length_50'
+address = '../data/density_0.70/'
 
-tobe_list = glob.glob( address + '/*/*/seed_*/dump/*.mpiio.data' )
+tobe_list = glob.glob( address + '/*/*/*/dump/*.mpiio.data' )
 par_list = []
 for item in tobe_list:
-    item = re.findall(r"\d*\.*\d+", item)[4:7]
+    item = re.findall(r"\d*\.*\d+", item)[1:4]
     if item not in par_list:
         par_list.append(item)
 
@@ -18,19 +18,19 @@ print(par_list)
 
 
 
-def submit(k,a,s):
+def submit(k,a,n):
 
-    Path(f'coarse_log/{k}_{a}_{s}').mkdir(exist_ok=True, parents=True)
+    Path(f'coarse_log/{k}/{a}/{n}').mkdir(exist_ok=True, parents=True)
 
-    with open(f"coarse_log/{k}_{a}_{s}/submit.sh", "w") as f:
+    with open(f"coarse_log/{k}/{a}/{n}/submit.sh", "w") as f:
 
         def fw(x):
             f.write(x+'\n')
 
         fw('#!/bin/bash')
         fw('#SBATCH -J coarse')
-        fw(f'#SBATCH -o coarse_log/{k}_{a}_{s}/output.txt')
-        fw(f'#SBATCH -e coarse_log/{k}_{a}_{s}/error.txt')
+        fw(f'#SBATCH -o coarse_log/{k}/{a}/{n}/output.txt')
+        fw(f'#SBATCH -e coarse_log/{k}/{a}/{n}/error.txt')
         fw('#SBATCH -N 1')
         fw('#SBATCH --ntasks-per-node 1')
         fw('#SBATCH -t 48:00:00')
@@ -39,11 +39,11 @@ def submit(k,a,s):
         fw('module load anaconda3/2021.05')
         fw('')
 
-        fw(f'python3 server_coarse.py --k={k} --a={a} --s={s}')
+        fw(f'python3 server_coarse.py --k={k} --a={a} --name={n}')
 
-    subprocess.run(shlex.split(f'sbatch coarse_log/{k}_{a}_{s}/submit.sh'))
+    subprocess.run(shlex.split(f'sbatch coarse_log/{k}/{a}/{n}/submit.sh'))
 
 
-for (k,a,s) in par_list:
-    submit(k,a,s)
+for (k,a,n) in par_list:
+    submit(k,a,n)
 

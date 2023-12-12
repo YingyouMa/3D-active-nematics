@@ -21,7 +21,7 @@ SDTN		 = 0.9 	# threshold of space difference, normalized in box width
 parser = argparse.ArgumentParser()
 parser.add_argument("--k") 											# stiffness
 parser.add_argument("--a") 											# activity
-parser.add_argument("--n") 											# name
+parser.add_argument("--name") 											# name
 parser.add_argument("--sig", default=2) 							# sigma for Gaussian filter
 parser.add_argument("--N", default=300, type=int)					# initial coarse-grained grid dimensions
 parser.add_argument("--N_trunc", default=128, type=int) 			# truncated wave number
@@ -36,6 +36,7 @@ NY_trunc = NX_trunc
 NZ_trunc = NX_trunc
 
 suffix = args.suffix
+sig = args.sig
 
 N_out = args.N_out
 xpad = int((N_out-NX_trunc)/2) 		# the "pad" for Fourier interpolation
@@ -97,7 +98,7 @@ def truncate_rfft_coefficients(F, new_NX, new_NY, new_NZ):
     return tmp /NX /NY /NZ
 
 # Fourier transform with Gaussian filter
- def kernal_fft(fp, sig, L):
+def kernal_fft(fp, sig, L):
     N = fp.shape[-3]
     F = fp[...] *N**3
     

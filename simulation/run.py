@@ -6,7 +6,6 @@ import os
 import pandas as pd
 import numpy as np
 
-import datetime
 
 # Directory
 ROOT = Path(__file__).resolve().parent
@@ -16,7 +15,7 @@ CREATE_POLY_PATH = ROOT / "tools/create_poly"
 WIDTH           = 200       # Box width
 DENSITY         = 0.7       # Volume fraction
 NATOMS          = 50        # Amount of monomers per filament
-DAMP            = 10        # Damping coefficient (one over gamma)
+DAMP            = 0.1       # Damping coefficient (one over gamma)
 BOND_LENGTH     = 0.5       # Equilibrium length of bond
 
 # Constants of simulation
