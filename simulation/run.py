@@ -21,7 +21,7 @@ BOND_LENGTH     = 0.5       # Equilibrium length of bond
 # Constants of simulation
 DUMP_N          = 200       # Total number of dumping files
 ARCHIVE_INTV    = 300_000   # Interval of storing the restart files
-DUMP_BASE       = 500       # Set the dumping intervals as multipole of DUMP_BASE
+DUMP_BASE       = 200       # Set the dumping intervals as multipole of DUMP_BASE
 TIME_STEP       = 0.001
 
 
@@ -46,18 +46,19 @@ print(check_table)
 parameters = np.array(pd.read_csv("parameters.csv"))
 
 # The directory's name of upcoming simulations
-name_list = np.arange(5)
+name_list = np.arange(3)
 
 # The function to run the simulation of each set of parameters
 def main(parameter, name):
 
     # Load the parameters and calculate the dump interval
     stiffness, activity, max_time = parameter
-    stiffness =int(stiffness)
+    stiffness = int(stiffness)
+    activity  = float(activity)
     dump_intv = max_time/TIME_STEP/DUMP_N
     dump_intv = round(dump_intv / DUMP_BASE) * DUMP_BASE
-    max_time  = int( dump_intv * DUMP_N )
-    max_step  = int( max_time/TIME_STEP )
+    max_step  = int( dump_intv * DUMP_N )
+    max_time  = int( max_step * TIME_STEP )
 
     job_name = f"Nematics3D_k{stiffness}_a{activity}_n{name}"
     path = ROOT / f"data/density_{DENSITY:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}"
@@ -101,7 +102,7 @@ def main(parameter, name):
             cutoff=2**(1/6),
             seed=np.random.randint(1000000),
             stiffness=stiffness,
-            activity=int(activity/DAMP),
+            activity=activity/DAMP,
             damp=DAMP,
             tau=1,
             dump_intv=dump_intv,
