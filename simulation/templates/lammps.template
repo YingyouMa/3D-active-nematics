@@ -81,3 +81,5 @@ timestep {timestep}
 thermo {dump_intv}
 run {max_step} upto
 
+shell echo "{max_time}" > end.txt
+

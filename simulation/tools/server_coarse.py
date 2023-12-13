@@ -21,7 +21,7 @@ SDTN		 = 0.9 	# threshold of space difference, normalized in box width
 parser = argparse.ArgumentParser()
 parser.add_argument("--k") 											# stiffness
 parser.add_argument("--a") 											# activity
-parser.add_argument("--name") 											# name
+parser.add_argument("--name") 									    # name
 parser.add_argument("--sig", default=2) 							# sigma for Gaussian filter
 parser.add_argument("--N", default=300, type=int)					# initial coarse-grained grid dimensions
 parser.add_argument("--N_trunc", default=128, type=int) 			# truncated wave number
@@ -128,9 +128,9 @@ def main(stiffness, activity, name):
     # Find all the dump files
     files = glob.glob(path+'*.mpiio.data')
     frames = np.array([int(re.findall(r'\d+', file)[-1]) for file in files])
-    frames = np.sort(frames)
+    frames = np.sort(frames)[::-1]
 
-    LX, LY, LZ, length, num_polys, NUM_ATOMS = read_params(frames[0], path)
+    LX, LY, LZ, length, num_polys, NUM_ATOMS = read_params(frames[-1], path)
     
     NX = N
     NY = N

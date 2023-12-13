@@ -56,7 +56,8 @@ def main(parameter, name):
     stiffness =int(stiffness)
     dump_intv = max_time/TIME_STEP/DUMP_N
     dump_intv = round(dump_intv / DUMP_BASE) * DUMP_BASE
-    max_step  = int( dump_intv * DUMP_N )
+    max_time  = int( dump_intv * DUMP_N )
+    max_step  = int( max_time/TIME_STEP )
 
     job_name = f"Nematics3D_k{stiffness}_a{activity}_n{name}"
     path = ROOT / f"data/density_{DENSITY:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}"
@@ -109,6 +110,7 @@ def main(parameter, name):
             dump_path="dump/*.mpiio.data",
             timestep=TIME_STEP,
             max_step=max_step,
+            max_time=max_time
         )
         f.write(contents)  
 

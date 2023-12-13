@@ -30,7 +30,7 @@ def submit(k,a,n):
         fw('#!/bin/bash')
         fw('#SBATCH -A TG-MCB090163')
         fw('#SBATCH -p shared')
-        fw('#SBATCH -J coarse')
+        fw(f'#SBATCH -J coarse_k{k}_a{a}_n{n}')
         fw(f'#SBATCH -o coarse_log/{k}/{a}/{n}/output.txt')
         fw(f'#SBATCH -e coarse_log/{k}/{a}/{n}/error.txt')
         fw('#SBATCH -N 1')
