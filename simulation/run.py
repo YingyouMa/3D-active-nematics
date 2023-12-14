@@ -72,6 +72,14 @@ def main(parameter, name):
     path.mkdir(exist_ok=True, parents=True)
     os.chdir(path)
 
+    # check if the simulation has finished
+    if os.path.isfile( path + 'end.txt' ):
+        with open(path + 'end.txt', 'r') as f:
+            end = int(f.readline())
+        if end >= max_time:
+            print('The simulation has finished')
+            return 0
+
     # Check if it's a new simulation
     save_version = 1
     if Path("restart/save.base.dat.1").is_file():
