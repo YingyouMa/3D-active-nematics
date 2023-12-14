@@ -12,17 +12,17 @@ ROOT = Path(__file__).resolve().parent
 CREATE_POLY_PATH = ROOT / "tools/create_poly"
 
 # Constants of filaments
-WIDTH           = 200       # Box width
-DENSITY         = 0.7       # Volume fraction
-NATOMS          = 50        # Amount of monomers per filament
-DAMP            = 0.1       # Damping coefficient (one over gamma)
-BOND_LENGTH     = 0.5       # Equilibrium length of bond
+WIDTH               = 200       # Box width
+DENSITY             = 0.7       # Volume fraction
+NATOMS              = 50        # Amount of monomers per filament
+DAMP                = 0.1       # Damping coefficient (one over gamma)
+BOND_LENGTH         = 0.5       # Equilibrium length of bond
 
 # Constants of simulation
-DUMP_N          = 200       # Total number of dumping files
-ARCHIVE_INTV    = 300_000   # Interval of storing the restart files
-DUMP_BASE       = 200       # Set the dumping intervals as multipole of DUMP_BASE
-TIME_STEP       = 0.001
+DUMP_N              = 200       # Total number of dumping files
+ARCHIVE_INTV_RAW    = 300_000   # Raw interval of storing the restart files. The real interval might be slightly changed
+DUMP_BASE           = 200       # Set the dumping intervals as multipole of DUMP_BASE
+TIME_STEP           = 0.001
 
 
 # Loading templates
@@ -55,10 +55,15 @@ def main(parameter, name):
     stiffness, activity, max_time = parameter
     stiffness = int(stiffness)
     activity  = float(activity)
-    dump_intv = max_time/TIME_STEP/DUMP_N
+    max_time  = int(max_time)
+    max_step  = max_time/TIME_STEP
+    dump_intv = max_step/DUMP_N
+    if dump_intv > ARCHIVE_INTV_RAW:
+        dump_intv = ARCHIVE_INTV_RAW
     dump_intv = round(dump_intv / DUMP_BASE) * DUMP_BASE
-    max_step  = int( dump_intv * DUMP_N )
-    max_time  = int( max_step * TIME_STEP )
+    max_step  = round(max_step / dump_intv) * dump_intv
+    max_time  = max_step * TIME_STEP
+    archive_intv = round( ARCHIVE_INTV_RAW / dump_intv) * dump_intv
 
     job_name = f"Nematics3D_k{stiffness}_a{activity}_n{name}"
     path = ROOT / f"data/density_{DENSITY:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}"
@@ -73,8 +78,8 @@ def main(parameter, name):
     os.chdir(path)
 
     # check if the simulation has finished
-    if os.path.isfile( path + '/end.txt' ):
-        with open(path + '/end.txt', 'r') as f:
+    if os.path.isfile( path / 'end.txt' ):
+        with open(path / 'end.txt', 'r') as f:
             end = int(f.readline())
         if end >= max_time:
             print('The simulation has finished')
@@ -114,7 +119,7 @@ def main(parameter, name):
             damp=DAMP,
             tau=1,
             dump_intv=dump_intv,
-            archive_intv=ARCHIVE_INTV,
+            archive_intv=archive_intv,
             save_version=save_version,
             dump_path="dump/*.mpiio.data",
             timestep=TIME_STEP,
