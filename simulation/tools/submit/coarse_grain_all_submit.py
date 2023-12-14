@@ -5,7 +5,11 @@ import glob
 import re
 import numpy as np
 
-address = '../data/density_0.70/'
+DENSITY = 0.7
+if_IFFT = True
+if_diag = True
+
+address = f'../data/density{DENSITY:0.2f}/'
 
 tobe_list = glob.glob( address + '/*/*/*/dump/*.mpiio.data' )
 par_list = []
@@ -15,8 +19,6 @@ for item in tobe_list:
         par_list.append(item)
 
 print(par_list)
-
-
 
 def submit(k,a,n):
 
@@ -41,11 +43,10 @@ def submit(k,a,n):
         fw('module load anaconda3/2021.05')
         fw('')
 
-        fw(f'python3 server_coarse.py --k={k} --a={a} --name={n}')
+        fw(f'python3 ../coarse_grain.py --k={k} --a={a} --name={n} --if_IFFT={if_IFFT} --if_diag={if_diag}')
 
     subprocess.run(shlex.split(f'sbatch coarse_log/{k}/{a}/{n}/submit.sh'))
 
 
 for (k,a,n) in par_list:
     submit(k,a,n)
-

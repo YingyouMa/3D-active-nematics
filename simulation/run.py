@@ -73,8 +73,8 @@ def main(parameter, name):
     os.chdir(path)
 
     # check if the simulation has finished
-    if os.path.isfile( path + 'end.txt' ):
-        with open(path + 'end.txt', 'r') as f:
+    if os.path.isfile( path + '/end.txt' ):
+        with open(path + '/end.txt', 'r') as f:
             end = int(f.readline())
         if end >= max_time:
             print('The simulation has finished')
