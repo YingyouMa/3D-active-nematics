@@ -1,12 +1,25 @@
 import numpy as np
 import lammps
+import time
+import h5py
+import gzip
+import os
+from pathlib import Path
 
-# ----------------------------------------------
-# Load some basic information from one dump file
-# ----------------------------------------------
+# TODO: support non-cubic box
 
-def read_params(frame, path, suffix):
+# Constants of filaments
+DENSITY 	= 0.7
+NATOMS 		= 50
+
+# ------------------------------------------------------------------------
+# Read the coordinates of each monomer and calculate some basic parameters
+# ------------------------------------------------------------------------
+
+def read_pos(frame, path, suffix):
+
     data, bounds = lammps.read_lammps(path+str(frame)+suffix)
+    data.sort_values(by='id', inplace=True)
     NUM_ATOMS = len(data)
     num_polys = np.max(data['mol'])
     length = NUM_ATOMS // num_polys  # polymer length
@@ -16,26 +29,11 @@ def read_params(frame, path, suffix):
     LX = xhi - xlo
     LY = yhi - ylo
     LZ = zhi - zlo
-    return LX, LY, LZ, length, num_polys, NUM_ATOMS
-
-
-# ------------------------------------
-# Read the coordinates of each monomer
-# ------------------------------------
-
-def read_pos(frame, path, suffix):
-    data, bounds = lammps.read_lammps(path+str(frame)+suffix)
-    data.sort_values(by='id', inplace=True)
-    xlo, xhi = bounds['x']
-    ylo, yhi = bounds['y']
-    zlo, zhi = bounds['z']
-    LX = xhi - xlo
-    LY = yhi - ylo
-    LZ = zhi - zlo
     r = data[['xu', 'yu', 'zu']].values.copy()
     r -= np.array([xlo,ylo,zlo])
     r %= [LX, LY, LZ]
-    return r
+
+    return r, LX, LY, LZ, length, num_polys, NUM_ATOMS
 
 
 # -----------------------------------------
@@ -75,6 +73,7 @@ def count_monomer(r, length, sdt, L, VOXEL, N):
 
     return den, qtensor
 
+
 # ----------------------------------------------------
 # Gaussian filter working on Fourier transformed field
 # ----------------------------------------------------
@@ -99,6 +98,7 @@ def kernal_fft(fp, sig, L):
     
     F = F[..., :int(N/2)+1]
     return F
+
 
 # --------------------------------------------------------------
 # Coarse-grain the field by truncate at some maximum wave number
@@ -153,4 +153,102 @@ def IFFT_nematics(Fd, Fq, N_out=0):
     qtensor[3] -= 1/3
 
     return den, qtensor
+
+
+# ---------------------------------------------------------------------------
+# The main function to coarse-graining one frame of particle-based simulation 
+# ---------------------------------------------------------------------------
+
+def coarse_one_frame(
+                    address, stiffness, activity, name, frame, suffix='.mpiio.data', 
+                    N_raw=300, N_trunc=128, sdtn=0.9,
+                    if_IFFT=True, sig=2, N_out=128,
+                    if_diag=True
+                    ):
+
+    start = time.time()
+
+    path = address + 'dump/'
+    save_path = address+'coarse/'
+
+    if len(N_raw) == 1:
+        NX, NY, NZ = N_raw, N_raw, N_raw
+    elif len(N_raw) == 3:
+        NX, NY, NZ = N_raw
+
+    # Read the coordinates
+    r, LX, LY, LZ, length, num_polys, NUM_ATOMS = read_pos(frame, path, suffix)
+
+    VOXEL = np.array([LX, LY, LZ]) / [NX, NY, NZ]
+    sdt = sdtn * LX
+
+    # Derive the raw density and Q tensor field
+    den, qtensor = count_monomer(r, length, sdt, LX, VOXEL, [NX, NY, NZ])
+
+    # Fourier transform the density field and truncate it at maximum wave number
+    F_density = np.zeros(shape=(NX,NY,NZ//2+1), dtype='complex128')
+    F_density = np.fft.rfftn(den)
+    F_density = truncate_rfft_coefficients(F_density, N_trunc, N_trunc, N_trunc)
+    del den
     
+    # Fourier transform the Q tensor field and truncate it at maximum wave number
+    F_qtensor = np.zeros(shape=(5,NX,NY,NZ//2+1), dtype='complex128')
+    F_qtensor[0] = np.fft.rfftn(qtensor[0,0])
+    F_qtensor[1] = np.fft.rfftn(qtensor[0,1])
+    F_qtensor[2] = np.fft.rfftn(qtensor[0,2])
+    F_qtensor[3] = np.fft.rfftn(qtensor[1,1])
+    F_qtensor[4] = np.fft.rfftn(qtensor[1,2])
+    F_qtensor = truncate_rfft_coefficients(F_qtensor, N_trunc, N_trunc, N_trunc)
+    del qtensor
+
+    # Store the FFT results
+    with h5py.File(save_path+'/FFT/'+str(frame)+'.h5py', 'w') as f:
+    
+        f.create_dataset('qtensor',  dtype='complex128', data=F_qtensor)
+        f.create_dataset('density',  dtype='complex128', data=F_density)
+    
+        params = {
+                    "grid_N": (NX, NY, NZ), "FFT_truncate": (N_trunc, N_trunc, N_trunc), \
+                    "LX": LX, "LY": LY, "LZ": LZ, \
+                    "num_polys": num_polys, "num_atoms": NUM_ATOMS,  \
+                    "data_path": path, "stiffness": stiffness, "activity": activity, "name": name, "frame": frame
+                    }
+        f.create_dataset('params', data=str(params))
+
+    if if_IFFT == True:
+
+        Path(save_path+f'result_{N_out}').mkdir(exist_ok=True)
+
+        Fd = kernal_fft(F_density, sig, LX)
+        Fq = kernal_fft(F_qtensor, sig, LX)
+
+        den, qtensor = IFFT_nematics(Fd, Fq, N_out=N_out)
+
+        with h5py.File(save_path+f'/result_{N_out}/'+str(frame)+'.h5py', 'w') as fw:
+            fw.create_dataset('density', data=den)
+            fw.create_dataset('qtensor', data=qtensor)
+
+        if if_diag == True:
+
+            Path( address + f"/diagonal/{N_out}/" ).mkdir(exist_ok = True, parents=True)
+
+            from field import diagonalizeQ
+
+            qtensor = qtensor.transpose((1,2,3,0))
+            S, n = diagonalizeQ(qtensor)
+
+            np.save( address + f"/diagonal/{N_out}/S_{frame}.npy", S )
+            np.save( address + f"/diagonal/{N_out}/n_{frame}.npy", n )
+
+    # Zip the analyzed file
+    unzip_file  = path + str(frame) + suffix
+    zip_file    = path +'nov.' + str(frame) + suffix + '.gz'
+    with open(unzip_file, 'rb') as f_in:
+        content = f_in.read()
+    f = gzip.open( zip_file, 'wb')
+    f.write(content)
+    f.close()
+    if os.path.isfile(zip_file):
+        os.remove(unzip_file)
+
+    print(frame, round(time.time()-start,2), 's')   

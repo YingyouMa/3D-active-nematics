@@ -6,7 +6,6 @@ import os
 import pandas as pd
 import numpy as np
 
-
 # Directory
 ROOT = Path(__file__).resolve().parent
 CREATE_POLY_PATH = ROOT / "tools/create_poly"
@@ -20,7 +19,7 @@ BOND_LENGTH         = 0.5       # Equilibrium length of bond
 
 # Constants of simulation
 DUMP_N              = 200       # Total number of dumping files
-ARCHIVE_INTV_RAW    = 300_000   # Raw interval of storing the restart files. The real interval might be slightly changed
+ARCHIVE_INTV_RAW    = 720_000   # Raw interval of storing the restart files. The real interval might be slightly changed
 DUMP_BASE           = 200       # Set the dumping intervals as multipole of DUMP_BASE
 TIME_STEP           = 0.001
 

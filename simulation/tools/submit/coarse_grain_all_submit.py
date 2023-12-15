@@ -9,7 +9,7 @@ DENSITY = 0.7
 if_IFFT = True
 if_diag = True
 
-address = f'../data/density{DENSITY:0.2f}/'
+address = f'../../data/density_{DENSITY:0.2f}/'
 
 tobe_list = glob.glob( address + '/*/*/*/dump/*.mpiio.data' )
 par_list = []
@@ -50,3 +50,7 @@ def submit(k,a,n):
 
 for (k,a,n) in par_list:
     submit(k,a,n)
+
+address = f"../data/density_{DENSITY:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}/"
+if len(glob.glob(address)) == 0:
+    address = "../" + address
