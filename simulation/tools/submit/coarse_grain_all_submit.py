@@ -22,9 +22,9 @@ print(par_list)
 
 def submit(k,a,n):
 
-    Path(f'coarse_log/{k}/{a}/{n}').mkdir(exist_ok=True, parents=True)
+    Path(f'log_coarse/{k}/{a}/{n}').mkdir(exist_ok=True, parents=True)
 
-    with open(f"coarse_log/{k}/{a}/{n}/submit.sh", "w") as f:
+    with open(f"log_coarse/{k}/{a}/{n}/submit.sh", "w") as f:
 
         def fw(x):
             f.write(x+'\n')
@@ -33,8 +33,8 @@ def submit(k,a,n):
         fw('#SBATCH -A TG-MCB090163')
         fw('#SBATCH -p shared')
         fw(f'#SBATCH -J coarse_k{k}_a{a}_n{n}')
-        fw(f'#SBATCH -o coarse_log/{k}/{a}/{n}/output.txt')
-        fw(f'#SBATCH -e coarse_log/{k}/{a}/{n}/error.txt')
+        fw(f'#SBATCH -o log_coarse/{k}/{a}/{n}/output.txt')
+        fw(f'#SBATCH -e log_coarse/{k}/{a}/{n}/error.txt')
         fw('#SBATCH -N 1')
         fw('#SBATCH --ntasks-per-node 1')
         fw('#SBATCH -t 48:00:00')
@@ -50,7 +50,3 @@ def submit(k,a,n):
 
 for (k,a,n) in par_list:
     submit(k,a,n)
-
-address = f"../data/density_{DENSITY:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}/"
-if len(glob.glob(address)) == 0:
-    address = "../" + address

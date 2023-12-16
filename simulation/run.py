@@ -45,7 +45,7 @@ print(check_table)
 parameters = np.array(pd.read_csv("parameters.csv"))
 
 # The directory's name of upcoming simulations
-name_list = np.arange(3)
+name_list = np.arange(1, 2)
 
 # The function to run the simulation of each set of parameters
 def main(parameter, name):

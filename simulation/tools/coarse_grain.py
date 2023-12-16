@@ -1,16 +1,10 @@
 import numpy as np
-from pathlib import Path
 import glob
 import re
 import argparse
 
-import sys
-sys.path
-sys.path.append('../Nematics3D')
-sys.path
-from coarse import coarse_one_frame
+from Nematics3D.coarse import coarse_one_frame
 
-import time
 
 # Constants of filaments
 DENSITY 	= 0.7
@@ -48,13 +42,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--k", type=int) 						        # stiffness
 parser.add_argument("--a", type=float) 								# activity
 parser.add_argument("--name", type=int) 							# name
-parser.add_argument("--address", type=str)                          # address of the simulation directory
-parser.add_argument("--sig", default=2, type=int) 					# sigma for Gaussian filter
+parser.add_argument("--suffix", default=".mpiio.data", type=str)	# the suffix of dump file names
 parser.add_argument("--N_raw", default=300, type=int)				# initial coarse-grained grid dimensions
 parser.add_argument("--N_trunc", default=128, type=int) 			# truncated wave number
+parser.add_argument("--sdtn", default=0.9, type=float) 	            # the threshold of bond length of wrapped monomers, normalized by box width
 parser.add_argument("--if_IFFT", default=True, type=bool)			# if inverse Fourier transform the data
+parser.add_argument("--sig", default=2, type=int) 					# sigma for Gaussian filter
 parser.add_argument("--N_out", default=128, type=int)				# the final grid dimensions in real space
-parser.add_argument("--suffix", default=".mpiio.data", type=str)	# the suffix of dump file names
 parser.add_argument("--if_diag", default=True, type=bool)           # if diagonalize the Q tensor
 args = parser.parse_args()
 
@@ -63,29 +57,32 @@ if args.k == None:
     k       = 100
     a       = 1.0
     name    = 100
-    address = f"data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
-    sig     = 2
+    address = f"../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
+    suffix  = ".mpiio.data"
     N_raw   = 300
     N_trunc = 128
+    sdtn    = 0.9
     if_IFFT = True
+    sig     = 2
     N_out   = 400
-    suffix  = ".mpiio.data"
     if_diag = True
 else:
     k       = args.k
     a       = args.a
     name    = args.name
-    sig     = args.sig
+    address = f"../../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
+    suffix  = args.suffix
     N_raw   = args.N_raw
     N_trunc = args.N_trunc
+    sdtn    = args.sdtn
     if_IFFT = args.if_IFFT
+    sig     = args.sig
     N_out   = args.N_out
-    suffix  = args.suffix
     if_diag = args.if_diag
 
 main(
     address, k, a, name, suffix=suffix,
-    N_raw=N_raw, N_trunc=N_trunc, 
+    N_raw=N_raw, N_trunc=N_trunc, sdtn=sdtn,
     if_IFFT=if_IFFT, N_out=N_out, sig=sig,
     if_diag=if_diag
     )

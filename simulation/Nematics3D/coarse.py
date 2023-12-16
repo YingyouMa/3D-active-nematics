@@ -1,16 +1,27 @@
 import numpy as np
-import lammps
 import time
 import h5py
 import gzip
 import os
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent.parent
+import sys
+sys.path
+sys.path.append(ROOT)
+sys.path
+
+from Nematics.lammps import read_lammps
+from Nematics.field import diagonalizeQ
+
 # TODO: support non-cubic box
+# ! Remember to reshape qtensor before save in the future version
 
 # Constants of filaments
 DENSITY 	= 0.7
 NATOMS 		= 50
+
+
 
 # ------------------------------------------------------------------------
 # Read the coordinates of each monomer and calculate some basic parameters
@@ -18,7 +29,7 @@ NATOMS 		= 50
 
 def read_pos(frame, path, suffix):
 
-    data, bounds = lammps.read_lammps(path+str(frame)+suffix)
+    data, bounds = read_lammps(path+str(frame)+suffix)
     data.sort_values(by='id', inplace=True)
     NUM_ATOMS = len(data)
     num_polys = np.max(data['mol'])
@@ -42,8 +53,9 @@ def read_pos(frame, path, suffix):
 
 def count_monomer(r, length, sdt, L, VOXEL, N):
 
+    N = np.array([N]).reshape(-1)
     if len(N) == 1:
-        NX, NY, NZ = N, N, N
+        NX, NY, NZ = N[0], N[0], N[0]
     elif len(N) == 3:
         NX, NY, NZ = N
 
@@ -171,8 +183,9 @@ def coarse_one_frame(
     path = address + 'dump/'
     save_path = address+'coarse/'
 
+    N_raw = np.array([N_raw]).reshape(-1)
     if len(N_raw) == 1:
-        NX, NY, NZ = N_raw, N_raw, N_raw
+        NX, NY, NZ = N_raw[0], N_raw[0], N_raw[0]
     elif len(N_raw) == 3:
         NX, NY, NZ = N_raw
 
@@ -202,6 +215,7 @@ def coarse_one_frame(
     del qtensor
 
     # Store the FFT results
+    Path(save_path+'/FFT').mkdir(exist_ok=True, parents=True)
     with h5py.File(save_path+'/FFT/'+str(frame)+'.h5py', 'w') as f:
     
         f.create_dataset('qtensor',  dtype='complex128', data=F_qtensor)
@@ -223,18 +237,18 @@ def coarse_one_frame(
         Fq = kernal_fft(F_qtensor, sig, LX)
 
         den, qtensor = IFFT_nematics(Fd, Fq, N_out=N_out)
+        qtensor = qtensor.transpose((1,2,3,0))
+        
 
         with h5py.File(save_path+f'/result_{N_out}/'+str(frame)+'.h5py', 'w') as fw:
             fw.create_dataset('density', data=den)
             fw.create_dataset('qtensor', data=qtensor)
+            fw.create_dataset('sigma', sig)
 
         if if_diag == True:
 
             Path( address + f"/diagonal/{N_out}/" ).mkdir(exist_ok = True, parents=True)
 
-            from field import diagonalizeQ
-
-            qtensor = qtensor.transpose((1,2,3,0))
             S, n = diagonalizeQ(qtensor)
 
             np.save( address + f"/diagonal/{N_out}/S_{frame}.npy", S )
