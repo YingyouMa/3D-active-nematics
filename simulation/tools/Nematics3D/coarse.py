@@ -5,8 +5,14 @@ import gzip
 import os
 from pathlib import Path
 
-from Nematics3D.lammps import read_lammps
-from Nematics3D.field import diagonalizeQ
+ROOT = Path(__file__).resolve().parent.parent
+import sys
+sys.path
+sys.path.append(ROOT)
+sys.path
+
+from Nematics.lammps import read_lammps
+from Nematics.field import diagonalizeQ
 
 # TODO: support non-cubic box
 # ! Remember to reshape qtensor before save in the future version
@@ -237,7 +243,7 @@ def coarse_one_frame(
         with h5py.File(save_path+f'/result_{N_out}/'+str(frame)+'.h5py', 'w') as fw:
             fw.create_dataset('density', data=den)
             fw.create_dataset('qtensor', data=qtensor)
-            fw.create_dataset('sigma', data=sig)
+            fw.create_dataset('sigma', sig)
 
         if if_diag == True:
 
@@ -247,7 +253,7 @@ def coarse_one_frame(
 
             np.save( address + f"/diagonal/{N_out}/S_{frame}.npy", S )
             np.save( address + f"/diagonal/{N_out}/n_{frame}.npy", n )
-
+    '''
     # Zip the analyzed file
     unzip_file  = path + str(frame) + suffix
     zip_file    = path +'nov.' + str(frame) + suffix + '.gz'
@@ -260,3 +266,4 @@ def coarse_one_frame(
         os.remove(unzip_file)
 
     print(frame, round(time.time()-start,2), 's')   
+    '''

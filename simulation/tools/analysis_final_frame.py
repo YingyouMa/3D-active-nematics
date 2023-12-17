@@ -68,7 +68,7 @@ def main(
 
         if end not in frames:
 
-            from Nematics3D.coarse import diagonalizeQ
+            from Nematics3D.field import diagonalizeQ
 
             with h5py.File(coarse_path+f'/result_{N_out}/'+str(end)+'.h5py', 'r') as fw:
                 qtensor = f['qtensor'][...]
@@ -80,6 +80,8 @@ def main(
 
     S = np.load( address + f"/diagonal/{N_out}/S_{end}.npy" )
     n = np.load( address + f"/diagonal/{N_out}/n_{end}.npy" )
+
+    
 
 # Input Parameters
 parser = argparse.ArgumentParser()

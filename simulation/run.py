@@ -63,6 +63,8 @@ def main(parameter, name):
     max_step  = round(max_step / dump_intv) * dump_intv
     max_time  = max_step * TIME_STEP
     archive_intv = round( ARCHIVE_INTV_RAW / dump_intv) * dump_intv
+    if archive_intv > max_step:
+        archive_intv = max_step
 
     job_name = f"Nematics3D_k{stiffness}_a{activity}_n{name}"
     path = ROOT / f"data/density_{DENSITY:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}"
@@ -79,7 +81,7 @@ def main(parameter, name):
     # check if the simulation has finished
     if os.path.isfile( path / 'end.txt' ):
         with open(path / 'end.txt', 'r') as f:
-            end = int(f.readline())
+            end = float(f.readline().strip())
         if end >= max_time:
             print('The simulation has finished')
             return 0
