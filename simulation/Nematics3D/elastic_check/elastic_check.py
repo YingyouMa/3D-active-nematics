@@ -1,4 +1,7 @@
 import numpy as np
+import matplotlib.pyplot as plt
+
+from elastic_test import get_deform_n, get_deform_Q, get_deform_Q_divide
 
 def Plus(*args):
     result = 0
@@ -24,10 +27,11 @@ Power = np.power
 
 
 N = 200
+L = 2
 
-x = np.linspace(-2,2,N)
-y = np.linspace(-2,2,N)
-z = np.linspace(-2,2,N)
+x = np.linspace(-L,L,N)
+y = np.linspace(-L,L,N)
+z = np.linspace(-L,L,N)
 
 X, Y, Z = np.meshgrid(x,y,z, indexing='ij')
 
@@ -40,7 +44,7 @@ n = np.array([
                 np.cos(theta)
             ])
 n = n.transpose((1,2,3,0))
-
+'''
 splay_linear = Plus(Times(6, Y, Cos(theta), Sin(phi)), Times(-1, Plus(Times(3, \
 Power(Z, 2)), Sin(phi)), Sin(theta)), Times(Cos(phi), Plus(Times(6, \
 Cos(theta)), Sin(theta))))
@@ -49,8 +53,9 @@ twist_linear = Times(Rational(1, 2), Plus(-1, Power(Cos(theta), 2), Times(12, \
 Sin(phi)), Times(-1, Power(Sin(theta), 2)), Times(Sin(phi), \
 Sin(Times(2, theta))), Times(Cos(phi), Plus(Times(-12, Y), \
 Sin(Times(2, theta))))))
-                                            
-bend_linear = List(Plus(Times(Sin(theta), Plus(Times(Cos(theta), Plus(-6, Sin(phi), \
+
+                                         
+bend_vector = List(Plus(Times(Sin(theta), Plus(Times(Cos(theta), Plus(-6, Sin(phi), \
 Times(6, Power(Sin(phi), 2)))), Times(Power(Sin(phi), 2), \
 Sin(theta)))), Times(Cos(phi), Plus(Times(-3, Power(Z, 2), \
 Power(Cos(theta), 2)), Times(-6, Y, Cos(theta), Sin(phi), \
@@ -60,40 +65,71 @@ Plus(Cos(phi), Times(6, Cos(phi), Sin(phi)), Times(6, Y, \
 Power(Sin(phi), 2))), Sin(theta)), Times(-1, Cos(phi), Plus(Cos(phi), \
 Sin(phi)), Power(Sin(theta), 2))), Times(3, Sin(theta), \
 Plus(Times(Power(Z, 2), Cos(theta)), Times(2, Plus(Cos(phi), Times(Y, \
-Sin(phi))), Sin(theta)))))
-                                          
-bend_linear = np.array(bend_linear).transpose((1,2,3,0))
+Sin(phi))), Sin(theta))))) 
 
-levi = np.zeros((3,3,3))
-levi[0,1,2], levi[1,2,0] ,levi[2,0,1] = 1, 1, 1
-levi[1,0,2], levi[2,1,0] ,levi[0,2,1] = -1, -1, -1
+bend_vector = np.array(bend_vector).transpose((1,2,3,0))
+'''
 
-width = 4
-N = np.shape(n)[0]
+splay = Power(Plus(Times(6, Y, Cos(theta), Sin(phi)), Times(-1, Plus(Times(3, \
+Power(Z, 2)), Sin(phi)), Sin(theta)), Times(Cos(phi), Plus(Times(6, \
+Cos(theta)), Sin(theta)))), 2)
+splay = splay[1:-1,1:-1,1:-1]
+                                                                 
+twist = Times(Rational(1, 4), Power(Plus(-1, Power(Cos(theta), 2), Times(12, \
+Sin(phi)), Times(-1, Power(Sin(theta), 2)), Times(Sin(phi), \
+Sin(Times(2, theta))), Times(Cos(phi), Plus(Times(-12, Y), \
+Sin(Times(2, theta))))), 2))
+twist = twist[1:-1,1:-1,1:-1]
 
-Q = np.einsum('nmli, nmlj -> nmlij', n, n)
-Q = Q - np.eye(3)/3
+bend = Plus(Times(9, Power(Sin(theta), 2), Power(Plus(Times(Power(Z, 2), \
+Cos(theta)), Times(2, Plus(Cos(phi), Times(Y, Sin(phi))), \
+Sin(theta))), 2)), Power(Plus(Times(3, Power(Z, 2), Power(Cos(theta), \
+2), Sin(phi)), Times(Cos(theta), Plus(Cos(phi), Times(6, Cos(phi), \
+Sin(phi)), Times(6, Y, Power(Sin(phi), 2))), Sin(theta)), \
+Times(Cos(phi), Plus(Cos(phi), Sin(phi)), Power(Sin(theta), 2))), 2), \
+Power(Plus(Times(Sin(theta), Plus(Times(Cos(theta), Plus(-6, \
+Sin(phi), Times(6, Power(Sin(phi), 2)))), Times(Power(Sin(phi), 2), \
+Sin(theta)))), Times(Cos(phi), Plus(Times(-3, Power(Z, 2), \
+Power(Cos(theta), 2)), Times(-6, Y, Cos(theta), Sin(phi), \
+Sin(theta)), Times(Sin(phi), Power(Sin(theta), 2))))), 2))
+bend = bend[1:-1,1:-1,1:-1]                   
+              
 
-diffQ = np.zeros( (N, N, N, 3, 3, 3) )   # indexx, indexy, indexz, index_diff, index_Q1, indexQ2, 
-diffQ[:, :, :, 0] = np.gradient(Q, axis=0) / ( width / (N-1) )
-diffQ[:, :, :, 1] = np.gradient(Q, axis=1) / ( width / (N-1) )
-diffQ[:, :, :, 2] = np.gradient(Q, axis=2) / ( width / (N-1) )
+def check(n, width, category, if_print=True, divn=3):
+    if category == 'n':
+        deform, diff = get_deform_n(n, width, if_print=if_print)
+    elif category == 'Q':
+        deform, Q = get_deform_Q(n, width)
+    elif category == 'Q2':
+        deform = get_deform_Q_divide(n, width, divn=divn)
+        
+    deform = deform.transpose((3,0,1,2))
+
+    return deform[:3]
 
 
-energy1 = np.einsum("ijkabc, ijkabc -> ijk", diffQ, diffQ)
-energy2 = np.einsum("ijkaac, ijkbbc -> ijk", diffQ, diffQ)
-energy3 = np.einsum("ijkab, ijkacd, ijkbcd -> ijk", Q, diffQ, diffQ)
+deform = check(n, 2*L, 'Q2')
+deform_theory = np.array([splay, twist, bend])
 
-splay =  - energy1  +  6 * energy2  - 3 * energy3
-splay = splay / 6
+index = np.arange((N-2)**3)
+np.random.shuffle(index)
+sample = index[:1000]
 
-twist_linear = np.einsum("abc, ijkad, ijkbcd -> ijk", levi, Q, diffQ)
-twist = twist_linear**2
+def check_plot(n):
+    plt.figure()
+    plt.plot(
+            (deform_theory[n].reshape(-1))[sample],
+            (deform[n].reshape(-1))[sample],
+            'o'
+            )
+    
+check_plot(0)
+check_plot(1)
+check_plot(2)
 
-temp1 = np.einsum('nmlab, nmlbia -> nmli', Q, diffQ)
-temp2 = np.einsum('nmlia, nmlbab -> nmli', Q, diffQ)
-bend_vector = - 2 * temp1 - temp2
-bend = np.sum(bend_vector**2, -1)
+
+
+
 
 
 

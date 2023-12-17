@@ -46,14 +46,14 @@ def get_deform_n(n, width, if_print=True):
     diff = diff / 2 / ( width/ (N-1) )
 
     n = n[1:-1,1:-1,1:-1]
-    splay = np.einsum( "abcii" , diff)**2
-    twist_linear = np.einsum( "ijk, abck, abcij -> abc", levi, n , diff)
-    twist = deform[:,:,:,3]**2
-    bend_vector  = np.einsum( "ijk, lmj, abci, abclm -> abck", levi, levi, n , diff )
+    splay = np.einsum( "nmlaa -> nml" , diff)**2
+    twist_linear = np.einsum( "abc, nmlc, nmlab -> nml", levi, n , diff)
+    twist = twist_linear**2
+    bend_vector  = np.einsum( "abi, cdb, nmla, nmlcd -> inml", levi, levi, n , diff )
     bend = np.sum( bend_vector**2, axis=0 )
 
-    deform = [splay, twist, bend, twist_linear, bend_vector]
-    deform = np.array(deform).transpose((1,2,3,0))
+    deform = np.array([splay, twist, bend, twist_linear, bend_vector[0], bend_vector[1], bend_vector[2]])
+    deform = deform.transpose((1,2,3,0))
 
     return deform, diff
 
@@ -80,13 +80,13 @@ def get_deform_Q(n, width):
     twist_linear = np.einsum("abc, nmlad, nmlbcd -> nml", levi, Q, diffQ)
     twist = twist_linear**2
 
-    temp1 = np.einsum('nmlab, nmlbia -> nmli', Q, diffQ)
-    temp2 = np.einsum('nmlia, nmlbab -> nmli', Q, diffQ)
+    temp1 = np.einsum('nmlab, nmlbia -> inml', Q, diffQ)
+    temp2 = np.einsum('nmlia, nmlbab -> inml', Q, diffQ)
     bend_vector = - 2 * temp1 - temp2
-    bend = np.sum(bend_vector**2, -1)
+    bend = np.sum(bend_vector**2, axis=0)
 
-    deform = [splay, twist, bend, twist_linear, bend_vector]
-    deform = np.array(deform).transpose((1,2,3,0))
+    deform = np.array([splay, twist, bend, twist_linear, bend_vector[0], bend_vector[1], bend_vector[2]])
+    deform = deform.transpose((1,2,3,0))
     deform = deform[1:-1,1:-1,1:-1]
 
     return deform, Q
@@ -96,7 +96,7 @@ def get_deform_Q_divide(n, width, divn = 2):
     N = np.shape(n)[0]
     divN = int(N/divn)
 
-    terms = np.zeros((6, N, N, N))
+    terms = np.zeros((10, N, N, N))
 
     def enclose(x):
         if x<0:
@@ -108,7 +108,7 @@ def get_deform_Q_divide(n, width, divn = 2):
         index2, pad2 = enclose(index2)
 
         nnow = n[index1 : index2]
-        Q = np.einsum('nmli, nmlc -> nm;ij', nnow, nnow)
+        Q = np.einsum('nmli, nmlj -> nmlij', nnow, nnow)
         Q = Q - np.eye(3)/3
 
         diffQ = np.zeros( list(np.shape(Q)) +[3] )
@@ -126,8 +126,8 @@ def get_deform_Q_divide(n, width, divn = 2):
         terms[1, index1 : index2] = np.einsum("nmlaac, nmlbbc -> nml", diffQ, diffQ)
         terms[2, index1 : index2] = np.einsum("nmlab,  nmlacd, nmlbcd -> nml", Q, diffQ, diffQ)
         terms[3, index1 : index2] = np.einsum("abc, nmlad, nmlbcd -> nml", levi, Q, diffQ)
-        terms[4, index1 : index2] = np.einsum('nmlab, nmlbia -> nmli', Q, diffQ)
-        terms[5, index1 : index2] = np.einsum('nmlia, nmlbab -> nmli', Q, diffQ)
+        terms[4:7, index1 : index2] = np.einsum('nmlab, nmlbia -> inml', Q, diffQ)
+        terms[7:, index1 : index2] = np.einsum('nmlia, nmlbab -> inml', Q, diffQ)
 
     for i in range(divn-1):
         print(f'start part {i+1}')
@@ -148,11 +148,11 @@ def get_deform_Q_divide(n, width, divn = 2):
     twist_linear = terms[3]
     twist = twist_linear**2
 
-    bend_vector = - 2 * terms[4] - terms[5]
-    bend = np.sum(bend_vector**2, -1)
+    bend_vector = - 2 * terms[4:7] - terms[7:]
+    bend = np.sum(bend_vector**2, axis=0)
 
-    deform = [splay, twist, bend, twist_linear, bend_vector]
-    deform = np.array(deform).transpose((1,2,3,0))
+    deform = np.array([splay, twist, bend, twist_linear, bend_vector[0], bend_vector[1], bend_vector[2]])
+    deform = deform.transpose((1,2,3,0))
     deform = deform[1:-1,1:-1,1:-1]
 
     return deform
