@@ -172,7 +172,7 @@ def show_loop_plane(
         print(f'loading mayavi cost {round(time.time()-now, 2)}s')
     else:
         from mayavi import mlab
-    from .field import select_subbox, local_box_diagonalize
+    from Nematics3D.field import select_subbox, local_box_diagonalize
 
     def SLP_plot_plane(upper, down, d_box, grid, norm_vec, n_box, scale_n):
 

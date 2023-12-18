@@ -247,7 +247,7 @@ def coarse_one_frame(
 
             np.save( address + f"/diagonal/{N_out}/S_{frame}.npy", S )
             np.save( address + f"/diagonal/{N_out}/n_{frame}.npy", n )
-
+    '''
     # Zip the analyzed file
     unzip_file  = path + str(frame) + suffix
     zip_file    = path +'nov.' + str(frame) + suffix + '.gz'
@@ -260,3 +260,4 @@ def coarse_one_frame(
         os.remove(unzip_file)
 
     print(frame, round(time.time()-start,2), 's')   
+    '''

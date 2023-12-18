@@ -52,6 +52,8 @@ parser.add_argument("--N_out", default=128, type=int)				# the final grid dimens
 parser.add_argument("--if_diag", default=True, type=bool)           # if diagonalize the Q tensor
 args = parser.parse_args()
 
+# Input parameters
+# address may be different for different users
 if args.k == None:
     print('No parameters input. Use the default parameters provided by the program instead.')
     k       = 100

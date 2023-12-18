@@ -45,7 +45,7 @@ def submit(k,a,n):
 
         fw(f'python3 ../coarse_grain.py --k={k} --a={a} --name={n} --if_IFFT={if_IFFT} --if_diag={if_diag}')
 
-    subprocess.run(shlex.split(f'sbatch coarse_log/{k}/{a}/{n}/submit.sh'))
+    subprocess.run(shlex.split(f'sbatch log_coarse/{k}/{a}/{n}/submit.sh'))
 
 
 for (k,a,n) in par_list:
