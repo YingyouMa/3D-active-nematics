@@ -8,7 +8,7 @@ import numpy as np
 
 # Directory
 ROOT = Path(__file__).resolve().parent
-CREATE_POLY_PATH = ROOT / "tools/create_poly"
+CREATE_POLY_PATH = ROOT / "tools/create_poly.py"
 
 # Constants of filaments
 WIDTH               = 200       # Box width
