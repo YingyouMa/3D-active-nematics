@@ -57,11 +57,11 @@ def get_deform_n(n, width, if_print=True):
 
     return deform, diff
 
-def get_deform_Q(n, width):
+def get_deform_Q(n, width, degree):
 
     N = np.shape(n)[0]
 
-    Q = np.einsum('abci, abcj -> abcij', n, n)
+    Q = np.einsum('nmli, nmlj -> nmlij', n, n)
     Q = Q - np.eye(3)/3
 
     diffQ = np.zeros( (N, N, N, 3, 3, 3) )   # indexx, indexy, indexz, index_diff, index_Q1, indexQ2, 
@@ -69,20 +69,25 @@ def get_deform_Q(n, width):
     diffQ[:, :, :, 1] = np.gradient(Q, axis=1) / ( width / (N-1) )
     diffQ[:, :, :, 2] = np.gradient(Q, axis=2) / ( width / (N-1) )
 
+    Q = Q[1:-1,1:-1,1:-1]
+    diffQ = diffQ[1:-1,1:-1,1:-1]
+
     twist_linear = np.einsum("abc, nmlad, nmlbcd -> nml", levi, Q, diffQ)
     twist = twist_linear**2
 
-    temp1 = np.einsum('nmlab, nmlaib -> inml', Q, diffQ)
-    temp2 = np.einsum('nmlia, nmlbab -> inml', Q, diffQ)
+    temp1 = np.einsum('nmlab, nmlaib -> nmli', Q, diffQ)
+    temp2 = np.einsum('nmlia, nmlbab -> nmli', Q, diffQ)
     bend_vector = - 2 * temp1 - temp2
+    bend = np.sum(bend_vector**2, axis=-1)
     splay_vector = temp1 + 2 * temp2
-    splay = np.sum(splay_vector**2, axis=0)
+    splay = np.sum(splay_vector**2, axis=-1)
 
-    deform = np.array([splay, twist_linear, bend_vector[0], bend_vector[1], bend_vector[2]])
-    deform = deform.transpose((1,2,3,0))
-    deform = deform[1:-1,1:-1,1:-1]
-
-    return deform, Q
+    if degree == 1:
+        return [splay_vector, twist_linear, bend_vector]
+    elif degree == 2:
+        return [splay, twist, bend]
+    elif degree == 3:
+        return [splay_vector, twist_linear, bend_vector, splay, twist, bend]
 
 def get_deform_Q_divide(n, width, divn = 2):
 

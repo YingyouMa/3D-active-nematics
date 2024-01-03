@@ -35,7 +35,7 @@ Power = np.power
 
 
 N = 200
-L = 3
+L = 2
 
 x = np.linspace(-L,L,N)
 y = np.linspace(-L,L,N)
@@ -102,29 +102,28 @@ Power(Cos(theta), 2)), Times(-6, Y, Cos(theta), Sin(phi), \
 Sin(theta)), Times(Sin(phi), Power(Sin(theta), 2))))), 2))
 bend = bend[1:-1,1:-1,1:-1]                   
               
+deform_theory = np.array([splay, twist, bend])
 
 def check(n, width, category, if_print=True, divn=3):
     if category == 'n':
         deform, diff = get_deform_n(n, width, if_print=if_print)
     elif category == 'Q':
-        deform, Q = get_deform_Q(n, width)
+        deform = get_deform_Q(n, width, 2)
     elif category == 'Q2':
         deform = get_deform_Q_divide(n, width, divn=divn)
-        
-    deform = deform.transpose((3,0,1,2))
 
     return deform[:3]
 
 start = time.time()
 print('analyzing')
-deform = check(n, 2*L, 'Q2')
+deform = check(n, 2*L, 'Q')
 print(time.time()-start)
-deform_theory = np.array([splay, twist, bend])
-'''
+
+
 index = np.arange((N-2)**3)
 np.random.shuffle(index)
 sample = index[:1000]
-'''
+
 def check_plot(n):
     plt.figure()
     plt.plot(
