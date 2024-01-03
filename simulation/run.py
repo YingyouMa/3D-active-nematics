@@ -122,7 +122,7 @@ def main(parameter, name):
             dump_intv=dump_intv,
             archive_intv=archive_intv,
             save_version=save_version,
-            dump_path="dump/*.mpiio.data",
+            dump_path="dump/*.data",
             timestep=TIME_STEP,
             max_step=max_step,
             max_time=max_time

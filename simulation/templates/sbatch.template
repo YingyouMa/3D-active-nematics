@@ -9,6 +9,7 @@
 #SBATCH -t 48:00:00
 #SBATCH --mail-user=yingyouma@brandeis.edu
 #SBATCH --mail-type=end
+#SBATCH --mem=249208M
 
 # Load openmpi. 
 # The code could be different on different server.
@@ -25,4 +26,4 @@ fi
 # Run lammps. 
 # The command could be different on different server.
 # The first argument is the address of excutable lammps program
-ibrun /home/yingyou/lammps/build/lmp -in {lammps_script}
+srun -n $SLURM_NTASKS /home/yingyou/lammps/build/lmp -in {lammps_script}
