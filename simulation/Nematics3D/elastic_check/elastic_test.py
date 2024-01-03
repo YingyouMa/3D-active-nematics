@@ -69,21 +69,22 @@ def get_deform_Q(n, width):
     diffQ[:, :, :, 1] = np.gradient(Q, axis=1) / ( width / (N-1) )
     diffQ[:, :, :, 2] = np.gradient(Q, axis=2) / ( width / (N-1) )
 
-    energy1 = np.einsum("nmlabc, nmlabc -> nml", diffQ, diffQ)
-    energy2 = np.einsum("nmlaac, nmlbbc -> nml", diffQ, diffQ)
-    energy3 = np.einsum("nmlab,  nmlacd, nmlbcd -> nml", Q, diffQ, diffQ)
+    #energy1 = np.einsum("nmlabc, nmlabc -> nml", diffQ, diffQ)
+    #energy2 = np.einsum("nmlaac, nmlbbc -> nml", diffQ, diffQ)
+    #energy3 = np.einsum("nmlab,  nmlacd, nmlbcd -> nml", Q, diffQ, diffQ)
 
-
-    splay =  - energy1  +  6 * energy2  - 3 * energy3
-    splay = splay / 6
+    #splay =  - energy1  +  6 * energy2  - 3 * energy3
+    #splay = splay / 6
 
     twist_linear = np.einsum("abc, nmlad, nmlbcd -> nml", levi, Q, diffQ)
     twist = twist_linear**2
 
-    temp1 = np.einsum('nmlab, nmlbia -> inml', Q, diffQ)
+    temp1 = np.einsum('nmlab, nmlaib -> inml', Q, diffQ)
     temp2 = np.einsum('nmlia, nmlbab -> inml', Q, diffQ)
     bend_vector = - 2 * temp1 - temp2
     bend = np.sum(bend_vector**2, axis=0)
+    splay_vector = temp1 + 2 *temp2
+    splay = np.sum(splay_vector**2, axis=0)
 
     deform = np.array([splay, twist, bend, twist_linear, bend_vector[0], bend_vector[1], bend_vector[2]])
     deform = deform.transpose((1,2,3,0))

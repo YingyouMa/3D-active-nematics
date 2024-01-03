@@ -217,8 +217,6 @@ def calc_lp_S(S, max_N, width=200, head_skip=25):
     S_cor_local[:,0] *= width/N
     S_cor_local = S_cor_local[S_cor_local[:, 0].argsort()]
 
-    S_var = np.var(S)
-
     popt, pcov = curve_fit(exp_decay, S_cor_local[head_skip:,0], S_cor_local[head_skip:,1], p0=[S.var(), 0.5])
 
     return popt, S_cor_local
@@ -242,14 +240,14 @@ def calc_lp_n(n, max_N=0, width=200, head_skip=25):
     print('start to calculate lp_n')
     for (i,j,k) in product(np.arange(max_N), np.arange(max_N), np.arange(max_N)):
         n_corr[i,j,k] = np.average( 
-                1.5 * np.sum( n_core * n[ i+max_N:i-max_N, j+max_N:j-max_N, k+max_N:k-max_N ] , axis=0 )**2 - 0.5 
+                1.5 * np.sum( n_core * n[ i+max_N:i-max_N, j+max_N:j-max_N, k+max_N:k-max_N ], axis=-1 )**2 - 0.5 
                                     )
-        print(round(time.time()-start, 1))
-        '''
+        # print(i, j, k, round(time.time()-start, 1))
+    
         if (j,k) == (max_N-1, max_N-1):
             print(f'{i+1}/{max_N}', str(round(time.time()-start, 1))+'s')
             start = time.time()
-        '''
+
         
     n_cor_local = np.zeros((max_N**3,2))
     
@@ -261,6 +259,6 @@ def calc_lp_n(n, max_N=0, width=200, head_skip=25):
     n_cor_local[:,0] *= width/N
     n_cor_local = n_cor_local[n_cor_local[:, 0].argsort()]
 
-    popt, pcov = curve_fit(exp_decay, n_cor_local[head_skip:,0], n_cor_local[head_skip:,1])
+    popt, pcov = curve_fit(exp_decay, n_cor_local[head_skip:,0], n_cor_local[head_skip:,1], p0=[1,0.5])
 
     return popt, n_cor_local

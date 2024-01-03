@@ -1,7 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 from elastic_test import get_deform_n, get_deform_Q, get_deform_Q_divide
+
+# import sys
+# sys.path
+# sys.path.append(r'E:\Program\GitHub\3D-active-nematics\simulation')
+# sys.path
+
+# from Nematics3D.elastic import get_deform_n, get_deform_Q, get_deform_Q_divide
 
 def Plus(*args):
     result = 0
@@ -27,7 +35,7 @@ Power = np.power
 
 
 N = 200
-L = 2
+L = 3
 
 x = np.linspace(-L,L,N)
 y = np.linspace(-L,L,N)
@@ -107,14 +115,16 @@ def check(n, width, category, if_print=True, divn=3):
 
     return deform[:3]
 
-
+start = time.time()
+print('analyzing')
 deform = check(n, 2*L, 'Q2')
+print(time.time()-start)
 deform_theory = np.array([splay, twist, bend])
-
+'''
 index = np.arange((N-2)**3)
 np.random.shuffle(index)
 sample = index[:1000]
-
+'''
 def check_plot(n):
     plt.figure()
     plt.plot(
@@ -122,6 +132,8 @@ def check_plot(n):
             (deform[n].reshape(-1))[sample],
             'o'
             )
+    axis = [0, np.max((deform_theory[n].reshape(-1))[sample])]
+    plt.plot(axis, axis)
     
 check_plot(0)
 check_plot(1)
