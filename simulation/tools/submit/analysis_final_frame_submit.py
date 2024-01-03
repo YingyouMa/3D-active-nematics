@@ -3,7 +3,6 @@ import re
 from pathlib import Path
 import subprocess
 import shlex
-import os
 
 import pandas as pd
 
@@ -34,13 +33,13 @@ for item in tobe_list:
 
     if end >= max_time:
 
-        file_end_analysis = \
-        f'../../data/density_{DENSITY:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}/analysis/final/final.csv'
+        end_directory = glob.glob(
+        f'../../data/density_{DENSITY:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}/analysis/final/endframe*_Nout*'
+                                    )
         
-        if os.path.isfile(file_end_analysis):
-            final =  pd.read_csv(file_end_analysis)
-            find_analyzed = (parameters['end'] == end) & (parameters['N_out'] == N_OUT)
-            if len(find_analyzed) != 0:
+        if len(end_directory)>0:
+            analyzed = [re.findall(r"\d*\.*\d+", item)[-2:] for item in end_directory]
+            if [end, N_OUT] in analyzed:
                 if IF_COVER== False:
                     print(stiffness, activity, name)
                 else:
