@@ -73,7 +73,6 @@ def get_deform_Q(n, width, degree):
     diffQ = diffQ[1:-1,1:-1,1:-1]
 
     twist_linear = np.einsum("abc, nmlad, nmlbcd -> nml", levi, Q, diffQ)
-    twist = twist_linear**2
 
     temp1 = np.einsum('nmlab, nmlaib -> nmli', Q, diffQ)
     temp2 = np.einsum('nmlia, nmlbab -> nmli', Q, diffQ)
@@ -81,12 +80,30 @@ def get_deform_Q(n, width, degree):
     bend = np.sum(bend_vector**2, axis=-1)
     splay_vector = temp1 + 2 * temp2
     splay = np.sum(splay_vector**2, axis=-1)
+    
+    del temp1, temp2
 
     if degree == 1:
+        
         return [splay_vector, twist_linear, bend_vector]
+    
     elif degree == 2:
+        
+        twist = twist_linear**2
+        del twist_linear
+        splay = np.sum(splay_vector**2, axis=-1)
+        del splay_vector
+        bend = np.sum(bend_vector**2, axis=-1)
+        del bend_vector
+        
         return [splay, twist, bend]
+    
     elif degree == 3:
+        
+        twist = twist_linear**2
+        splay = np.sum(splay_vector**2, axis=-1)
+        bend = np.sum(bend_vector**2, axis=-1)
+        
         return [splay_vector, twist_linear, bend_vector, splay, twist, bend]
 
 def get_deform_Q_divide(n, width, divn = 2):

@@ -5,13 +5,18 @@ import os
 import re
 import h5py
 import argparse
+import json
 
 from scipy.stats import mode
 import matplotlib.pyplot as plt
-
-from Nematics3D.field import calc_lp_n, calc_lp_S, exp_decay
-
-# ! Remember to reshape qtensor before save in the future version
+'''
+import sys
+sys.path
+sys.path.append(r'E:\Program\GitHub\3D-active-nematics\simulation')
+sys.path
+'''
+from Nematics3D.field import calc_lp_S, exp_decay
+from Nematics3D.elastic import get_deform_Q
 
 
 DENSITY     = 0.7
@@ -24,22 +29,23 @@ plt.rcParams.update({'font.size': 30})
 def main(
         address, stiffness, activity, name,
         sig=2, N_out=400, L=200, 
-        lp_N_ratio=8, lp_head_ratio=18
+        lp_max_init_ratio=8, lp_skip_init_ratio=40
         ):
     
+    global lp_popt_S, S_cor_local
+    
     coarse_path = address + "/coarse/"
-    save_path 	= address +'/final/'
-    final_path  = address + "/analysis/final/"
 
-    Path( save_path+'/data' ).mkdir(exist_ok=True, parents=True)
-    Path( coarse_path+f'/FFT' ).mkdir(exist_ok=True, parents=True)
+    Path( coarse_path+'/FFT' ).mkdir(exist_ok=True, parents=True)
     Path( coarse_path+f'/result_{N_out}' ).mkdir(exist_ok=True, parents=True)
     Path( address + f"/diagonal/{N_out}/" ).mkdir(exist_ok = True, parents=True)
-    Path( final_path ).mkdir(exist_ok = True, parents=True)
 
     with open( address + '/end.txt', 'r') as f:
         end = float(f.readline().strip())
         end_frame = int( end / TIME_STEP )
+        
+    final_path  = address + f"/analysis/final/endframe{end_frame}_Nout{N_out}/"
+    Path( final_path ).mkdir(exist_ok = True, parents=True)
 
     files 	= glob.glob(coarse_path+'/FFT/*.h5py')
     frames 	= np.array([int(re.findall(r'\d+', file)[-2]) for file in files])
@@ -58,7 +64,7 @@ def main(
 
             from Nematics3D.coarse import kernal_fft, IFFT_nematics
 
-            with h5py.File(coarse_path+'/FFT/'+str(end_frame)+'.h5py', 'R') as f:
+            with h5py.File(coarse_path+'/FFT/'+str(end_frame)+'.h5py', 'r') as f:
                 F_density = f['density'][...]
                 F_qtensor = f['qtensor'][...]
 
@@ -71,6 +77,7 @@ def main(
             with h5py.File(coarse_path+f'/result_{N_out}/'+str(end_frame)+'.h5py', 'w') as fw:
                 fw.create_dataset('density', data=den)
                 fw.create_dataset('qtensor', data=qtensor)
+                fw.create_dataset('sigma', data=sig)
 
             del Fd, Fq, den, qtensor
 
@@ -89,31 +96,64 @@ def main(
                 np.save( address + f"/diagonal/{N_out}/S_{end_frame}.npy", S )
                 np.save( address + f"/diagonal/{N_out}/n_{end_frame}.npy", n )
 
+    
+    
 
     S = np.load( address + f"/diagonal/{N_out}/S_{end_frame}.npy" )
     n = np.load( address + f"/diagonal/{N_out}/n_{end_frame}.npy" )
-
-    S_mean  = S.mean()
-    S_mode  = mode(np.round(S,2).reshape(-1))
-    plt.figure((1920, 1080))
-    plt.hist(S.reshape(-1), bins=np.sqrt(np.size(S)))
-    plt.title('Distribution of S')
-    plt.savefig( save_path + f'/end_frame_{end_frame}/Nout_{N_out}/distS.jpg' )
-    plt.close()
-
-    lp_max_N = int( N_out / lp_N_ratio )
-    lp_head  = int( N_out / lp_head_ratio )
-
-    lp_S    = calc_lp_S(S, max_N=lp_max_N, width=WIDTH, head_skip=lp_head)
-    lp_n    = calc_lp_n(n, max_N=lp_max_N, width=WIDTH, head_skip=lp_head)
-
-
-
-
-
-
     
-
+    S_mean  = S.mean()
+    S_mode  = mode(np.round(S,2).reshape(-1))[0][0]
+    plt.figure(figsize=(16, 9))
+    plt.hist(S.reshape(-1), bins=int(np.sqrt(np.size(S)/2)))
+    plt.title('Distribution of S')
+    plt.savefig( final_path +'/distS.jpg' )
+    plt.close()
+    
+    lp_max = int( N_out / lp_max_init_ratio )
+    lp_skip  = int( N_out / lp_skip_init_ratio )
+    
+    output_S = calc_lp_S(S, max_init=lp_max, width=WIDTH, skip_init=lp_skip) 
+    lp_popt_S, S_cor_local, skip_S = output_S
+    
+    plt.figure(figsize=(16,9))
+    plt.plot(S_cor_local[:skip_S,0], S_cor_local[:skip_S,1], 
+             'o', color='red', label='experiment (skipped)')
+    plt.plot(S_cor_local[skip_S:,0], S_cor_local[skip_S:,1], 
+             'o', color='blue', label='experiment (fitted)')
+    plt.plot(S_cor_local[skip_S:,0], exp_decay(S_cor_local[skip_S:,0], *lp_popt_S), 
+             color='green', label=rf'$l_p$={round(lp_popt_S[1],2)}')
+    plt.xlabel(r'$\Delta$r')
+    plt.ylabel(r'$\langle \Delta S(r) \Delta S(r+\Delta r)\rangle_{space}$',)
+    plt.legend()
+    plt.title(f'frame={end_frame}')
+    plt.savefig( final_path +'/corrS.jpg' )
+    plt.close()
+    
+    print('analyzing Q')
+    deform = get_deform_Q(n, L, 2)
+    deform = np.einsum('inml, nml -> inml', deform, S[1:-1,1:-1,1:-1]**2)
+    splay, twist, bend = np.sum(deform, axis=(1,2,3)) * (L/N_out)**3
+    
+    result = {
+        "S_mean":   S_mean,
+        "S_mode":   S_mode,
+        "lp_S":     lp_popt_S[1],
+        "splay":    splay,
+        "twist":    twist,
+        "bend":     bend
+        }
+    
+    with open(final_path+"/result.json", "w") as f:
+        json.dump(result, f, indent=4)
+        
+    with h5py.File(final_path+'/data.h5py', 'w') as fw:
+        fw.create_dataset('splay', data=deform[0])
+        fw.create_dataset('twist', data=deform[1])
+        fw.create_dataset('bend', data=deform[2])
+        fw.create_dataset('S_correlation', data=S_cor_local)
+        
+        
 # Input Parameters
 parser = argparse.ArgumentParser()
 parser.add_argument("--k", type=int) 						        # stiffness
@@ -121,21 +161,30 @@ parser.add_argument("--a", type=float) 								# activity
 parser.add_argument("--name", type=int) 							# name
 parser.add_argument("--sig", default=2, type=int) 					# sigma for Gaussian filter
 parser.add_argument("--N_out", default=400, type=int)               # the final grid dimensions in real space
-parser.add_argument("--lp_N_ratio", default=5, type=int)			
-parser.add_argument("--lp_head_ratio", default=18, type=int)
+parser.add_argument("--lp_max_init_ratio", default=5, type=int)			
+parser.add_argument("--lp_skip_init_ratio", default=18, type=int)
 args = parser.parse_args()
 
 if args.k == None:
     print('No parameters input. Use the default parameters provided by the program instead.')
-
+    k                   = 100
+    a                   = 3.5
+    name                = 1000
+    address             = f"../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
+    sig                 = 2
+    N_out               = 128
+    lp_max_init_ratio   = 5
+    lp_skip_init_ratio  = 18
 else:
-    k               = args.k
-    a               = args.a
-    name            = args.name
-    address         = f"../../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
-    sig             = args.sig
-    N_out           = args.N_out
-    lp_N_ratio      = args.lp_N_ratio
-    lp_head_ratio   = args.lp_head_ratio
+    k                   = args.k
+    a                   = args.a
+    name                = args.name 
+    address             = f"../../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
+    sig                 = args.sig
+    N_out               = args.N_out
+    lp_max_init_ratio   = args.lp_max_init_ratio
+    lp_skip_init_ratio  = args.lp_skip_init_ratio
 
-main(address, k, a, name)
+main(address, k, a, name, 
+     sig=sig, N_out=N_out, L=200, 
+     lp_max_init_ratio=lp_max_init_ratio, lp_skip_init_ratio=lp_skip_init_ratio)

@@ -261,13 +261,126 @@ def get_plane(points):
 # ------------------------------------------------------------------------------------
 # Visualize the disclination loop with directors projected on principle planes
 # ------------------------------------------------------------------------------------ 
-  
+
+def show_plane_2Ddirector(
+                        n_box, height, 
+                        color_axis=(1,0), height_visual=0,
+                        space=3, line_width=2, density=1.5, 
+                        if_omega=True, S_box=0, S_threshold=0.2
+                          ):
+    
+    from mayavi import mlab
+    
+    from plotdefect import get_streamlines
+    
+    color_axis = color_axis / np.linalg.norm(color_axis) 
+    
+    x = np.arange(np.shape(n_box)[0])
+    y = np.arange(np.shape(n_box)[1])
+    z = np.arange(np.shape(n_box)[2])
+
+    indexy = np.arange(0, np.shape(n_box)[1], space)
+    indexz = np.arange(0, np.shape(n_box)[2], space)
+    iny, inz = np.meshgrid(indexy, indexz, indexing='ij')
+    ind = (iny, inz)
+
+    n_plot = n_box[height]
+
+    n_plane = np.array( [n_plot[:,:,1][ind], n_plot[:,:,2][ind] ] )
+    n_plane = n_plane / np.linalg.norm( n_plane, axis=-1, keepdims=True)
+
+    stl = get_streamlines(
+                y[indexy], z[indexz], 
+                n_plane[0].transpose(), n_plane[1].transpose(),
+                density=density)
+    stl = np.array(stl)
+
+    connect_begin = np.where(np.abs( stl[1:,0] - stl[:-1,1]  ).sum(axis=-1) < 1e-5 )[0]
+    connections = np.zeros((len(connect_begin),2))
+    connections[:,0] = connect_begin
+    connections[:,1] = connect_begin + 1
+
+    lines_index = np.arange(np.shape(stl)[0])
+    disconnect = lines_index[~np.isin(lines_index, connect_begin)]
+
+    if height_visual == 0:
+        src_x = stl[:, 0, 0] * 0 + height
+    else:
+        src_x = stl[:, 0, 0] * 0 + height_visual
+    src_y = stl[:, 0, 0]
+    src_z = stl[:, 0, 1]
+
+    unit = stl[1:, 0] - stl[:-1, 0]
+    unit = unit / np.linalg.norm(unit, axis=-1, keepdims=True)
+
+    colors = np.abs(np.einsum('ij, j -> i', unit, color_axis))
+    colors = np.concatenate([colors, [colors[-1]]])
+    nan_index = np.array(np.where(np.isnan(colors)==1))
+    colors[nan_index] = colors[nan_index-1]
+    colors[disconnect] = colors[disconnect-1]
+
+    src = mlab.pipeline.scalar_scatter(src_x, src_y, src_z, colors)
+    src.mlab_source.dataset.lines = connections
+    src.update()
+
+    lines = mlab.pipeline.stripper(src)
+    plot_lines = mlab.pipeline.surface(lines, line_width=line_width)
+    cb = mlab.colorbar(object=plot_lines, orientation='vertical', nb_labels=5, label_fmt='%.2f')
+    cb.data_range = (0,1)
+    cb.label_text_property.color = (0,0,0)
+
+    if if_omega == True: 
+
+        from scipy import ndimage
+
+        binimg = S_box<S_threshold
+        binimg[:height] = False
+        binimg[(height+1):] = False
+        binimg = ndimage.binary_dilation(binimg, iterations=1)
+        labels, num_objects = ndimage.label(binimg, structure=np.zeros((3,3,3))+1)
+        if num_objects > 2:
+            raise NameError('more than two parts')
+        elif num_objects == 1:
+            print('only one part. Have to seperate points by hand')
+            cross_coord = np.transpose(np.where(binimg==True))
+            cross_center = np.mean(cross_coord, axis=0)
+            cross_relative = cross_coord - np.tile(cross_center, (np.shape(cross_coord)[0],1))
+            cross_dis = np.sum(cross_relative**2, axis=1)**(1/2)
+            cross_to0 = cross_coord[cross_dis < np.percentile(cross_dis, 50), :]
+            binimg[tuple(np.transpose(cross_to0))] = False
+        labels, num_objects = ndimage.label(binimg, structure=np.zeros((3,3,3))+1)
+        for i in range(1,3):  
+            index = np.where(labels==i)
+            X, Y, Z = np.meshgrid(x,y,z, indexing='ij')
+            cord1 = X[index] - n_box[..., 0][index]/2
+            cord2 = Y[index] - n_box[..., 1][index]/2
+            cord3 = Z[index] - n_box[..., 2][index]/2
+        
+            pn = np.vstack((n_box[..., 0][index], n_box[..., 1][index], n_box[..., 2][index]))
+            Omega = get_plane(pn.T)
+            Omega= Omega * np.sign(Omega[0])
+            scale_norm = 20
+            if height_visual == 0:
+                xvisual = cord1.mean()
+            else:
+                xvisual = height_visual
+            mlab.quiver3d(
+                    xvisual, cord2.mean(), cord3.mean(),
+                    Omega[0], Omega[1], Omega[2],
+                    mode='arrow',
+                    color=(0,1,0),
+                    scale_factor=scale_norm,
+                    opacity=0.5
+                    )
+
+
+
 def show_loop_plane_2Ddirector(
                                 n_box, S_box,
                                 height_list, if_omega_list,
                                 height_visual_list=0, if_rescale_loop=True,
-                                figsize=(1920, 1360), bgcolor=(1,1,1),
-                                norm_length=20,
+                                figsize=(1920, 1360), bgcolor=(1,1,1), camera_set=0,
+                                norm_length=20, color_axis=(1,0),
                                 print_load_mayavi=False
                                 ):
     
@@ -310,12 +423,19 @@ def show_loop_plane_2Ddirector(
 
         loop_center = loop_smooth.mean(axis=0)
         mlab.quiver3d(
-        #*loop_center,
         height_visual_list[0], loop_center[1], loop_center[2],
         *(loop_N),
         mode='arrow',
         color=(0,0,1),
         scale_factor=norm_length,
         opacity=0.5
-        )  
+        ) 
+
+    show_plane_2Ddirector(n_box, height_list[0], height_visual=height_visual_list[0], if_omega=True, S_box=S_box)
+    show_plane_2Ddirector(n_box, height_list[1], height_visual=height_visual_list[1], if_omega=True, S_box=S_box)
+    show_plane_2Ddirector(n_box, height_list[2], height_visual=height_visual_list[2], if_omega=True, S_box=S_box)
+    if camera_set != 0: 
+        mlab.view(*camera_set[:3], roll=camera_set[3])
+
+ 
 

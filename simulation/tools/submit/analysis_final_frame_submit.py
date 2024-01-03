@@ -71,7 +71,7 @@ def submit(k,a,n):
         fw('#SBATCH -N 1')
         fw('#SBATCH --ntasks-per-node 1')
         fw('#SBATCH -t 48:00:00')
-        fw('#SBATCH --mem=40G')
+        fw('#SBATCH --mem=60G')
         fw('')
         fw('module load anaconda3/2021.05')
         fw('')
