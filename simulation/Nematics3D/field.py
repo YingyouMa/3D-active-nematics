@@ -197,7 +197,7 @@ def exp_decay(x, A, t):
 # Derive the persistent length of S by Fourier transfrom
 # ------------------------------------------------------
 
-def calc_lp_S(S, max_init, width=200, skip_init=25, iterate=2, skip_ratio=10, max_ratio=3):
+def calc_lp_S(S, max_init, width=200, skip_init=25, iterate=2, skip_ratio=1, max_ratio=10):
 
     from scipy.optimize import curve_fit
 
@@ -223,7 +223,7 @@ def calc_lp_S(S, max_init, width=200, skip_init=25, iterate=2, skip_ratio=10, ma
     skip = skip_init
 
     for i in range(iterate-1):
-        skip_length = popt[1] / skip_ratio
+        skip_length = popt[1] * skip_ratio
         max_length  = popt[1] * max_ratio
         select = ( S_cor_local[:, 0] > skip_length ) * ( S_cor_local[:, 0] < max_length )
         popt, pcov = curve_fit(exp_decay, 
