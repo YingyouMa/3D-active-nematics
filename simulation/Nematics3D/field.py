@@ -197,7 +197,7 @@ def exp_decay(x, A, t):
 # Derive the persistent length of S by Fourier transfrom
 # ------------------------------------------------------
 
-def calc_lp_S(S, max_N, width=200, head_skip_init=25, iterate=2, head_skip_ratio=10):
+def calc_lp_S(S, max_init, width=200, skip_init=25, iterate=2, skip_ratio=10, max_ratio=3):
 
     from scipy.optimize import curve_fit
 
@@ -207,10 +207,10 @@ def calc_lp_S(S, max_N, width=200, head_skip_init=25, iterate=2, head_skip_ratio
     S_spectrum = np.absolute(S_fourier)**2
     S_cor = np.real(np.fft.ifftn(S_spectrum)) / N**3
 
-    S_cor_local = np.zeros((max_N**3,2))
+    S_cor_local = np.zeros((max_init**3,2))
     
     index = 0
-    for (i,j,k) in product(np.arange(max_N), np.arange(max_N), np.arange(max_N)):
+    for (i,j,k) in product(np.arange(max_init), np.arange(max_init), np.arange(max_init)):
         S_cor_local[index] = [np.sqrt(i**2 + j**2 + k**2), S_cor[i,j,k] ]
         index += 1
         
@@ -218,18 +218,22 @@ def calc_lp_S(S, max_N, width=200, head_skip_init=25, iterate=2, head_skip_ratio
     S_cor_local = S_cor_local[S_cor_local[:, 0].argsort()]
 
     popt, pcov = curve_fit(exp_decay, 
-                           S_cor_local[head_skip_init:,0], S_cor_local[head_skip_init:,1], 
+                           S_cor_local[skip_init:,0], S_cor_local[skip_init:,1], 
                            p0=[S.var(), 0.5])
-    head_skip_length = S_cor_local[head_skip_init, 0]
+    skip = skip_init
 
     for i in range(iterate-1):
-        head_skip_length = popt[1] / head_skip_ratio
-        select = S_cor_local[:, 0] > head_skip_length
+        skip_length = popt[1] / skip_ratio
+        max_length  = popt[1] * max_ratio
+        select = ( S_cor_local[:, 0] > skip_length ) * ( S_cor_local[:, 0] < max_length )
         popt, pcov = curve_fit(exp_decay, 
                                 S_cor_local[select,0], S_cor_local[select,1], 
                                 p0=[S.var(), popt[1]])
+        skip = np.sum(S_cor_local[:, 0] <= skip_length)
+        
+    S_cor_local = S_cor_local[S_cor_local[:, 0] < max_length]
 
-    return popt, S_cor_local, head_skip_length
+    return popt, S_cor_local, skip
 
 
 # -------------------------------------------------------------
