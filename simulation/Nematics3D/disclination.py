@@ -112,6 +112,8 @@ def smoothen_loop(loop_coord, window_ratio=3, order=3, N_out=160):
 def plot_loop(
             loop_coord, 
             tube_radius=0.25, tube_opacity=0.5, if_add_head=True,
+            if_norm=False, 
+            norm_coord=[None,None,None], norm_color=(0,0,1), norm_length=20, norm_opacity=0.5, norm_width=1.0,
             print_load_mayavi=False
             ):
 
@@ -127,6 +129,23 @@ def plot_loop(
 
     mlab.plot3d(*(loop_coord.T), tube_radius=tube_radius, opacity=tube_opacity)
 
+    if if_norm == True:
+        loop_N = get_plane(loop_coord)
+        loop_center = loop_coord.mean(axis=0)
+        for i, coord in enumerate(norm_coord):
+            if coord != None:
+                loop_center[i] = coord
+        mlab.quiver3d(
+        *(loop_center), *(loop_N),
+        mode='arrow',
+        color=norm_color,
+        scale_factor=norm_length,
+        opacity=norm_opacity,
+        line_width=norm_width
+        ) 
+            
+
+
 # -----------------------------------------------------------------------------
 # Given a local director field. Visualize the disclination loop if there is any
 # -----------------------------------------------------------------------------
@@ -135,13 +154,20 @@ def plot_loop_from_n(
                     n_box, 
                     origin=[0,0,0], N=1, width=1, 
                     tube_radius=0.25, tube_opacity=0.5, if_add_head=True,
-                    if_smooth=True, window_ratio=3, order=3, N_out=160
+                    if_smooth=True, window_ratio=3, order=3, N_out=160,
+                    deform_funcs=[None,None,None],
+                    if_norm=False, 
+                    norm_coord=[None,None,None], norm_color=(0,0,1), norm_length=20, norm_opacity=0.5, norm_width=1.0,
+
                     ):
 
     loop_indices = find_defect(n_box)
     if len(loop_indices) > 0:
         loop_indices = loop_indices + np.tile(origin, (np.shape(loop_indices)[0],1) )
         loop_coord = sort_loop_indices(loop_indices)/N*width
+        for i, func in enumerate(deform_funcs):
+            if func != None:
+                loop_coord[:,i] = func(loop_coord[:,i])
         if if_smooth == True:
             loop_coord = smoothen_loop(
                                     loop_coord,
@@ -150,8 +176,10 @@ def plot_loop_from_n(
         plot_loop(
                 loop_coord, 
                 tube_radius=tube_radius, tube_opacity=tube_opacity, 
-                if_add_head=if_add_head
-                    )
+                if_add_head=if_add_head,
+                if_norm=if_norm,
+                norm_coord=norm_coord, norm_color=norm_color, norm_length=norm_length, norm_opacity=norm_opacity, norm_width=norm_width
+                    ) 
 
 
 # -------------------------------------------------------------------------
@@ -387,8 +415,9 @@ def show_loop_plane_2Ddirector(
     
     if height_visual_list == 0:
         height_visual_list = height_list
-        if_rescale_loop =False
-    elif if_rescale_loop == True:
+        if_rescale_loop = False
+        parabola = None
+    if if_rescale_loop == True:
         x, y, z = height_list
         coe_matrix = np.array([
                         [x**2, y**2, z**2],
@@ -400,6 +429,7 @@ def show_loop_plane_2Ddirector(
         def parabola(x):
             return coe_parabola[0]*x**2 + coe_parabola[1]*x + coe_parabola[2]
 
+
     if print_load_mayavi == True:
         now = time.time()
         from mayavi import mlab
@@ -408,6 +438,7 @@ def show_loop_plane_2Ddirector(
         from mayavi import mlab
 
     mlab.figure(size=figsize, bgcolor=bgcolor)
+    '''
     defect = find_defect(n_box)
     if len(defect) > 0:
         loop_indices = defect[nearest_neighbor_order(defect)]
@@ -425,39 +456,17 @@ def show_loop_plane_2Ddirector(
         color=(0,0,1),
         scale_factor=norm_length,
         opacity=0.5
-        ) 
+        )
+    '''
+    plot_loop_from_n(n_box, 
+                     tube_radius=0.75, tube_opacity=1, deform_funcs=[parabola,None,None],
+                     if_norm=True,
+                     norm_coord=[height_visual_list[0],None,None]
+                     )
 
     show_plane_2Ddirector(n_box, height_list[0], height_visual=height_visual_list[0], if_omega=True, S_box=S_box)
     show_plane_2Ddirector(n_box, height_list[1], height_visual=height_visual_list[1], if_omega=True, S_box=S_box)
     show_plane_2Ddirector(n_box, height_list[2], height_visual=height_visual_list[2], if_omega=True, S_box=S_box)
     if camera_set != 0: 
         mlab.view(*camera_set[:3], roll=camera_set[3])
-
- 
-def plot_loop_from_n(
-                    n_box, 
-                    origin=[0,0,0], N=1, width=1, 
-                    tube_radius=0.25, tube_opacity=0.5, if_add_head=True,
-                    if_smooth=True, window_ratio=3, order=3, N_out=160,
-                    deform_funcs=0
-                    ):
-
-    loop_indices = find_defect(n_box)
-    if len(loop_indices) > 0:
-        loop_indices = loop_indices + np.tile(origin, (np.shape(loop_indices)[0],1) )
-        loop_coord = sort_loop_indices(loop_indices)/N*width
-        if deform_funcs != 0:
-            deform_funcs = np.array([deform_funcs]).reshape(-1)
-            for i, func in enumerate(deform_funcs):
-                loop_coord[:,i] = func(loop_coord[:,i])
-        if if_smooth == True:
-            loop_coord = smoothen_loop(
-                                    loop_coord,
-                                    window_ratio=window_ratio, order=order, N_out=N_out
-                                    )
-        plot_loop(
-                loop_coord, 
-                tube_radius=tube_radius, tube_opacity=tube_opacity, 
-                if_add_head=if_add_head
-                    ) 
 
