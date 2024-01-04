@@ -105,6 +105,19 @@ def smoothen_loop(loop_coord, window_ratio=3, order=3, N_out=160):
 
     return new_indices
 
+# ---------------------------------------------------
+# Derive the averaged norm vecor of given coordinates
+# ---------------------------------------------------
+
+def get_plane(points):
+
+    center    = points.mean(axis=0)
+    relative  = points - np.tile(center, (np.shape(points)[0],1))
+    svd  = np.linalg.svd(relative.T)
+    left = svd[0]
+
+    return left[:, -1]
+
 # --------------------------------------------------------------
 # Visualize a disclination loop by the coordinates of each point
 # --------------------------------------------------------------
@@ -131,6 +144,7 @@ def plot_loop(
 
     if if_norm == True:
         loop_N = get_plane(loop_coord)
+        np.save('E:/loop_coord.npy', loop_coord)
         loop_center = loop_coord.mean(axis=0)
         for i, coord in enumerate(norm_coord):
             if coord != None:
@@ -274,17 +288,6 @@ def show_loop_plane(
                     )
 
     return dmean, eigvec, eigval
-
-# ---------------------------------------------------
-# Derive the averaged norm vecor of given coordinates
-# ---------------------------------------------------
-
-def get_plane(points):
-
-    svd  = np.linalg.svd(points.T)
-    left = svd[0]
-
-    return left[:, -1]
 
 # ------------------------------------------------------------------------------------
 # Visualize the disclination loop with directors projected on principle planes
@@ -438,26 +441,7 @@ def show_loop_plane_2Ddirector(
         from mayavi import mlab
 
     mlab.figure(size=figsize, bgcolor=bgcolor)
-    '''
-    defect = find_defect(n_box)
-    if len(defect) > 0:
-        loop_indices = defect[nearest_neighbor_order(defect)]
-        if if_rescale_loop == True:
-            loop_indices[:,0] = parabola(loop_indices[:,0])
-        loop_N = get_plane(loop_indices)
-        loop_smooth = smoothen_loop(loop_indices)
-        plot_loop(loop_smooth, tube_radius=0.75, tube_opacity=1)
 
-        loop_center = loop_smooth.mean(axis=0)
-        mlab.quiver3d(
-        height_visual_list[0], loop_center[1], loop_center[2],
-        *(loop_N),
-        mode='arrow',
-        color=(0,0,1),
-        scale_factor=norm_length,
-        opacity=0.5
-        )
-    '''
     plot_loop_from_n(n_box, 
                      tube_radius=0.75, tube_opacity=1, deform_funcs=[parabola,None,None],
                      if_norm=True,
