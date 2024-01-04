@@ -266,7 +266,7 @@ def show_plane_2Ddirector(
                         n_box, height, 
                         color_axis=(1,0), height_visual=0,
                         space=3, line_width=2, density=1.5, 
-                        if_omega=True, S_box=0, S_threshold=0.2
+                        if_omega=True, S_box=0, S_threshold=0.18
                           ):
     
     from mayavi import mlab
@@ -337,41 +337,42 @@ def show_plane_2Ddirector(
         binimg[:height] = False
         binimg[(height+1):] = False
         binimg = ndimage.binary_dilation(binimg, iterations=1)
-        labels, num_objects = ndimage.label(binimg, structure=np.zeros((3,3,3))+1)
-        if num_objects > 2:
-            raise NameError('more than two parts')
-        elif num_objects == 1:
-            print('only one part. Have to seperate points by hand')
-            cross_coord = np.transpose(np.where(binimg==True))
-            cross_center = np.mean(cross_coord, axis=0)
-            cross_relative = cross_coord - np.tile(cross_center, (np.shape(cross_coord)[0],1))
-            cross_dis = np.sum(cross_relative**2, axis=1)**(1/2)
-            cross_to0 = cross_coord[cross_dis < np.percentile(cross_dis, 50), :]
-            binimg[tuple(np.transpose(cross_to0))] = False
-        labels, num_objects = ndimage.label(binimg, structure=np.zeros((3,3,3))+1)
-        for i in range(1,3):  
-            index = np.where(labels==i)
-            X, Y, Z = np.meshgrid(x,y,z, indexing='ij')
-            cord1 = X[index] - n_box[..., 0][index]/2
-            cord2 = Y[index] - n_box[..., 1][index]/2
-            cord3 = Z[index] - n_box[..., 2][index]/2
-        
-            pn = np.vstack((n_box[..., 0][index], n_box[..., 1][index], n_box[..., 2][index]))
-            Omega = get_plane(pn.T)
-            Omega= Omega * np.sign(Omega[0])
-            scale_norm = 20
-            if height_visual == 0:
-                xvisual = cord1.mean()
-            else:
-                xvisual = height_visual
-            mlab.quiver3d(
-                    xvisual, cord2.mean(), cord3.mean(),
-                    Omega[0], Omega[1], Omega[2],
-                    mode='arrow',
-                    color=(0,1,0),
-                    scale_factor=scale_norm,
-                    opacity=0.5
-                    )
+        if np.sum(binimg) > 0:
+            labels, num_objects = ndimage.label(binimg, structure=np.zeros((3,3,3))+1)
+            if num_objects > 2:
+                raise NameError('more than two parts')
+            elif num_objects == 1:
+                print('only one part. Have to seperate points by hand')
+                cross_coord = np.transpose(np.where(binimg==True))
+                cross_center = np.mean(cross_coord, axis=0)
+                cross_relative = cross_coord - np.tile(cross_center, (np.shape(cross_coord)[0],1))
+                cross_dis = np.sum(cross_relative**2, axis=1)**(1/2)
+                cross_to0 = cross_coord[cross_dis < np.percentile(cross_dis, 50), :]
+                binimg[tuple(np.transpose(cross_to0))] = False
+            labels, num_objects = ndimage.label(binimg, structure=np.zeros((3,3,3))+1)
+            for i in range(1,3):  
+                index = np.where(labels==i)
+                X, Y, Z = np.meshgrid(x,y,z, indexing='ij')
+                cord1 = X[index] - n_box[..., 0][index]/2
+                cord2 = Y[index] - n_box[..., 1][index]/2
+                cord3 = Z[index] - n_box[..., 2][index]/2
+            
+                pn = np.vstack((n_box[..., 0][index], n_box[..., 1][index], n_box[..., 2][index]))
+                Omega = get_plane(pn.T)
+                Omega= Omega * np.sign(Omega[0])
+                scale_norm = 20
+                if height_visual == 0:
+                    xvisual = cord1.mean()
+                else:
+                    xvisual = height_visual
+                mlab.quiver3d(
+                        xvisual, cord2.mean(), cord3.mean(),
+                        Omega[0], Omega[1], Omega[2],
+                        mode='arrow',
+                        color=(0,1,0),
+                        scale_factor=scale_norm,
+                        opacity=0.5
+                        )
 
 
 
@@ -398,11 +399,6 @@ def show_loop_plane_2Ddirector(
         coe_parabola = np.dot(height_visual_list, np.linalg.inv(coe_matrix))
         def parabola(x):
             return coe_parabola[0]*x**2 + coe_parabola[1]*x + coe_parabola[2]
-
-    x = np.arange(np.shape(S_box)[0])
-    y = np.arange(np.shape(S_box)[1])
-    z = np.arange(np.shape(S_box)[2])
-    X, Y, Z = np.meshgrid(x,y,z, indexing='ij')
 
     if print_load_mayavi == True:
         now = time.time()
@@ -438,4 +434,30 @@ def show_loop_plane_2Ddirector(
         mlab.view(*camera_set[:3], roll=camera_set[3])
 
  
+def plot_loop_from_n(
+                    n_box, 
+                    origin=[0,0,0], N=1, width=1, 
+                    tube_radius=0.25, tube_opacity=0.5, if_add_head=True,
+                    if_smooth=True, window_ratio=3, order=3, N_out=160,
+                    deform_funcs=0
+                    ):
+
+    loop_indices = find_defect(n_box)
+    if len(loop_indices) > 0:
+        loop_indices = loop_indices + np.tile(origin, (np.shape(loop_indices)[0],1) )
+        loop_coord = sort_loop_indices(loop_indices)/N*width
+        if deform_funcs != 0:
+            deform_funcs = np.array([deform_funcs]).reshape(-1)
+            for i, func in enumerate(deform_funcs):
+                loop_coord[:,i] = func(loop_coord[:,i])
+        if if_smooth == True:
+            loop_coord = smoothen_loop(
+                                    loop_coord,
+                                    window_ratio=window_ratio, order=order, N_out=N_out
+                                    )
+        plot_loop(
+                loop_coord, 
+                tube_radius=tube_radius, tube_opacity=tube_opacity, 
+                if_add_head=if_add_head
+                    ) 
 

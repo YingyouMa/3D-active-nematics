@@ -1,14 +1,16 @@
-import numpy as np
 from pathlib import Path
 import glob
 import os
 import re
-import h5py
 import argparse
 import json
 
+import numpy as np
 from scipy.stats import mode
 import matplotlib.pyplot as plt
+
+import h5py
+
 '''
 import sys
 sys.path
