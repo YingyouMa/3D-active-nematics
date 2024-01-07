@@ -166,7 +166,7 @@ def IFFT_nematics(Fd, Fq, N_out=0):
 # ---------------------------------------------------------------------------
 
 def coarse_one_frame(
-                    address, stiffness, activity, name, frame, suffix='.mpiio.data', 
+                    address, stiffness, activity, name, frame, suffix='.data', 
                     N_raw=300, N_trunc=128, sdtn=0.9,
                     if_IFFT=True, sig=2, N_out=128,
                     if_diag=True
@@ -247,7 +247,7 @@ def coarse_one_frame(
 
             np.save( address + f"/diagonal/{N_out}/S_{frame}.npy", S )
             np.save( address + f"/diagonal/{N_out}/n_{frame}.npy", n )
-    '''
+    
     # Zip the analyzed file
     unzip_file  = path + str(frame) + suffix
     zip_file    = path +'nov.' + str(frame) + suffix + '.gz'
@@ -260,4 +260,4 @@ def coarse_one_frame(
         os.remove(unzip_file)
 
     print(frame, round(time.time()-start,2), 's')   
-    '''
+    
