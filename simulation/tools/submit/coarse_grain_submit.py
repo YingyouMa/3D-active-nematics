@@ -17,8 +17,7 @@ for item in tobe_list:
     item = re.findall(r"\d*\.*\d+", item)[1:4]
     if item not in par_list:
         par_list.append(item)
-
-print(par_list)
+        print(item)
 
 def submit(k,a,n):
 
