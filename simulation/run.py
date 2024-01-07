@@ -35,7 +35,7 @@ with open("templates/sbatch.template", "r") as f:
     sbatch_template = f.read()
 
 # Check the current status of simulation
-check_command = "squeue -u yingyou -o %i,%j,%t,%S" # Needs to be changed for different servers
+check_command = "squeue --me -o %i,%j,%t,%S"
 check_out = check_output( check_command.split() ).decode('utf8')
 check_table = pd.read_csv(StringIO(check_out))
 print(check_table)

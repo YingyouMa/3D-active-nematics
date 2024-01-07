@@ -4,7 +4,7 @@
 #SBATCH -J {job_name}
 #SBATCH -o logs/output.txt
 #SBATCH -e logs/error.txt
-#SBATCH -N 4
+#SBATCH -N 2
 #SBATCH --ntasks-per-node 128
 #SBATCH -t 48:00:00
 #SBATCH --mail-user=yingyouma@brandeis.edu

@@ -14,7 +14,7 @@ SDTN		= 0.9 	# threshold of space difference, normalized in box width
 
 
 def main(
-        address, stiffness, activity, name, suffix='.mpiio.data', 
+        address, stiffness, activity, name, suffix='.data', 
         N_raw=300, N_trunc=128, sdtn=0.9,
         if_IFFT=True, sig=2, N_out=128,
         if_diag=True
@@ -24,7 +24,7 @@ def main(
     
     # Find all the dump files
     dump_path = address + 'dump/'
-    files = glob.glob(dump_path+'*.mpiio.data')
+    files = glob.glob(dump_path + suffix)
     frames = np.array([int(re.findall(r'\d+', file)[-1]) for file in files])
     frames = np.sort(frames)[::-1]
 
@@ -42,7 +42,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--k", type=int) 						        # stiffness
 parser.add_argument("--a", type=float) 								# activity
 parser.add_argument("--name", type=int) 							# name
-parser.add_argument("--suffix", default=".mpiio.data", type=str)	# the suffix of dump file names
+parser.add_argument("--suffix", default=".data", type=str)	# the suffix of dump file names
 parser.add_argument("--N_raw", default=300, type=int)				# initial coarse-grained grid dimensions
 parser.add_argument("--N_trunc", default=128, type=int) 			# truncated wave number
 parser.add_argument("--sdtn", default=0.9, type=float) 	            # the threshold of bond length of wrapped monomers, normalized by box width
@@ -60,7 +60,7 @@ if args.k == None:
     a       = 1.0
     name    = 100
     address = f"../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
-    suffix  = ".mpiio.data"
+    suffix  = ".data"
     N_raw   = 300
     N_trunc = 128
     sdtn    = 0.9
