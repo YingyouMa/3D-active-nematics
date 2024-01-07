@@ -24,7 +24,7 @@ def main(
     
     # Find all the dump files
     dump_path = address + 'dump/'
-    files = glob.glob(dump_path + suffix)
+    files = glob.glob(dump_path + '*' + suffix)
     frames = np.array([int(re.findall(r'\d+', file)[-1]) for file in files])
     frames = np.sort(frames)[::-1]
 
