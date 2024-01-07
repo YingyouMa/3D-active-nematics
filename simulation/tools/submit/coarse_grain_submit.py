@@ -11,7 +11,7 @@ if_diag = True
 
 address = f'../../data/density_{DENSITY:0.2f}/'
 
-tobe_list = glob.glob( address + '/*/*/*/dump/*.mpiio.data' )
+tobe_list = glob.glob( address + '/*/*/*/dump/*.data' )
 par_list = []
 for item in tobe_list:
     item = re.findall(r"\d*\.*\d+", item)[1:4]
