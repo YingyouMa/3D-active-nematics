@@ -50,12 +50,12 @@ def analyze(address, frame, size, N=3):
     # 3: angle, coefficient, normalized coefficient
     result = np.zeros(( 5, N, 3 ))
     for i in range(5):
-        result[i] = analyze_fft(qtensor[i], N=N)
+        result[i] = analyze_fft(qtensor[..., i], N=N)
     
     print(frame, round(time.time()-start, 2), 's')
     return result, np.average(S)
 
-def main(address, stiffness, activity, name, N=3):
+def main(address, stiffness, activity, name, N=3, if_cover=False):
 
     files = glob.glob(f'{address}/diagonal/128/S_*.npy')
     frames = np.array([int(re.findall(r'\d+', file)[-1]) for file in files])
@@ -66,13 +66,14 @@ def main(address, stiffness, activity, name, N=3):
 
     out_path = address + '/analysis/k_instability/'
 
-    if len(glob.glob(out_path+'/frames.npy')) != 0:
+    if if_cover == False and len(glob.glob(out_path+'/frames.npy')) != 0:
         print('Found previous data')
         frame_old = np.load(out_path+'/frames.npy')
         result[:len(frame_old)] = np.load(out_path+'/result.npy')
         S_mean[:len(frame_old)] = np.load(out_path+'/S_mean.npy')
     else:
         frame_old = []
+
     for i in range(len(frame_old), len(frames)):
         frame = frames[i]
         result[i], S_mean[i] = analyze(address, frame, 128, N=N)
@@ -82,7 +83,7 @@ def main(address, stiffness, activity, name, N=3):
 
     np.save(out_path+'/result', result)
     np.save(out_path+'/S_mean', S_mean)
-    np.save(out_path+'/frame', frames)
+    np.save(out_path+'/frames', frames)
 
     angle_mean = np.sum( result[..., 0] * result[..., 2] / np.sum(result[..., 2], axis=-1, keepdims=True), axis=-1)
     temp = result[:,1:3] # only Q_xy and Q_xz
@@ -103,9 +104,9 @@ def main(address, stiffness, activity, name, N=3):
     ax.legend(lns, labs, loc=loc1)
     ax.set_title('value of largest Fourier coefficient')
     ax.set_xlabel('time')
-    fig.savefig(f'../figures/k_instability/k{stiffness}_a{activity}/Fourier.jpg')
+    fig.savefig(f'../figures/k_instability/n{name}_k{stiffness}_a{activity}_Fourier.jpg')
     fig.savefig(out_path+'/Fourier.jpg')
-    fig.close()
+    plt.close(fig)
     
     
     fig = plt.figure(figsize=(15,10))
@@ -120,16 +121,17 @@ def main(address, stiffness, activity, name, N=3):
     ax.legend(lns, labs, loc=loc2)
     ax.set_title(r'$\bar{\theta}$')
     ax.set_xlabel('time')
-    fig.savefig(f'../figures/k_instability/k{stiffness}_a{activity}_n{name}/theta.jpg')
+    fig.savefig(f'../figures/k_instability/n{name}_k{stiffness}_a{activity}_theta.jpg')
     fig.savefig(out_path+'/theta.jpg')
-    fig.close()
+    plt.close(fig)
 
 # Input Parameters
 parser = argparse.ArgumentParser()
 parser.add_argument("--k", type=int) 						        # stiffness
 parser.add_argument("--a", type=float) 								# activity
 parser.add_argument("--name", type=int) 							# name
-parser.add_argument("--N", type=int)                                # select the top N predominant wave vectors
+parser.add_argument("--N", type=int, default=3)                     # select the top N predominant wave vectors
+parser.add_argument("--cover", type=bool, default=False)            # if cover the previous result
 args = parser.parse_args()
 
 if args.k == None:
@@ -138,13 +140,15 @@ if args.k == None:
     a                   = 1.0
     name                = 1
     N                   = 3
+    if_cover            = True
     address             = f"../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
 else:
     k                   = args.k
     a                   = args.a
     name                = args.name 
     N                   = args.N
+    if_cover            = args.cover
     address             = f"../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
 
-main(address, k, a, name, N=N)
+main(address, k, a, name, N=N, if_cover=if_cover)
 
