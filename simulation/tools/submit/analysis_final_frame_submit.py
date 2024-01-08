@@ -1,11 +1,15 @@
 import glob
 import re
 from pathlib import Path
+import os
 import subprocess
 import shlex
 
 import pandas as pd
 
+script_directory = os.path.dirname(os.path.abspath(__file__))
+os.chdir(script_directory)
+os.chdir('..')
 
 DENSITY     = 0.7
 TIME_STEP   = 0.001
@@ -13,9 +17,9 @@ TIME_STEP   = 0.001
 N_OUT       = 400
 IF_COVER    = True
 
-parameters = pd.read_csv("../../parameters.csv")
+parameters = pd.read_csv("../parameters.csv")
 par_list = []
-tobe_list = glob.glob( f'../../data/density_{DENSITY:0.2f}/*/*/*/end.txt' )
+tobe_list = glob.glob( f'../data/density_{DENSITY:0.2f}/*/*/*/end.txt' )
 
 print('Finished trials: ')
 for item in tobe_list:
@@ -34,7 +38,7 @@ for item in tobe_list:
     if end >= max_time:
 
         end_directory = glob.glob(
-        f'../../data/density_{DENSITY:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}/analysis/final/endframe*_Nout*'
+        f'../data/density_{DENSITY:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}/analysis/final/endframe*_Nout*'
                                     )
         
         if len(end_directory)>0:
@@ -54,9 +58,9 @@ for item in tobe_list:
 
 def submit(k,a,n):
 
-    Path(f'log_analysis_final/{k}/{a}/{n}').mkdir(exist_ok=True, parents=True)
+    Path(f'submit/log_analysis_final/{k}/{a}/{n}').mkdir(exist_ok=True, parents=True)
 
-    with open(f"log_analysis_final/{k}/{a}/{n}/submit.sh", "w") as f:
+    with open(f"submit/log_analysis_final/{k}/{a}/{n}/submit.sh", "w") as f:
 
         def fw(x):
             f.write(x+'\n')
@@ -75,9 +79,11 @@ def submit(k,a,n):
         fw('module load anaconda3/2021.05')
         fw('')
 
-        fw(f'python3 ../analysis_final_frame.py --k={k} --a={a} --name={n}')
+        fw(f'python3 analysis_final_frame.py --k={k} --a={a} --name={n}')
 
-    subprocess.run(shlex.split(f'sbatch log_analysis_final/{k}/{a}/{n}/submit.sh'))
+    
+    subprocess.run(shlex.split(f'sbatch submit/log_analysis_final/{k}/{a}/{n}/submit.sh'))
+
 
 for par in par_list:
     submit(*par)

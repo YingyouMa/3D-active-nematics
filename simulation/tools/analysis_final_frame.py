@@ -1,6 +1,5 @@
 from pathlib import Path
 import glob
-import os
 import re
 import argparse
 import json
@@ -20,6 +19,7 @@ sys.path
 from Nematics3D.field import calc_lp_S, exp_decay
 from Nematics3D.elastic import get_deform_Q
 
+Path('../figures/S_lp').mkdir(exist_ok=True, parents=True)
 
 DENSITY     = 0.7
 TIME_STEP   = 0.001
@@ -34,7 +34,7 @@ def main(
         lp_max_init_ratio=8, lp_skip_init_ratio=40
         ):
     
-    global lp_popt_S, S_cor_local
+    # global lp_popt_S, S_cor_local
     
     coarse_path = address + "/coarse/"
 
@@ -130,6 +130,7 @@ def main(
     plt.legend()
     plt.title(f'frame={end_frame}')
     plt.savefig( final_path +'/corrS.jpg' )
+    plt.savefig(f'../figures/S_lp/{stiffness}_{activity}.jpg')
     plt.close()
     
     print('analyzing Q')
@@ -181,7 +182,7 @@ else:
     k                   = args.k
     a                   = args.a
     name                = args.name 
-    address             = f"../../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
+    address             = f"../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
     sig                 = args.sig
     N_out               = args.N_out
     lp_max_init_ratio   = args.lp_max_init_ratio
