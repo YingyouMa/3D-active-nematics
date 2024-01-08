@@ -1,6 +1,7 @@
 import glob
 import re
 from pathlib import Path
+import argparse
 
 import time
 
@@ -10,6 +11,8 @@ import matplotlib.pyplot as plt
 
 loc1='upper right'
 loc2='lower left'
+
+DENSITY = 0.7
 
 Path('../figures/k_instability').mkdir(exist_ok=True, parents=True)
 
@@ -52,7 +55,7 @@ def analyze(address, frame, size, N=3):
     print(frame, round(time.time()-start, 2), 's')
     return result, np.average(S)
 
-def main(address, stiffness, activity, N=3):
+def main(address, stiffness, activity, name, N=3):
 
     files = glob.glob(f'{address}/diagonal/128/S_*.npy')
     frames = np.array([int(re.findall(r'\d+', file)[-1]) for file in files])
@@ -117,8 +120,31 @@ def main(address, stiffness, activity, N=3):
     ax.legend(lns, labs, loc=loc2)
     ax.set_title(r'$\bar{\theta}$')
     ax.set_xlabel('time')
-    fig.savefig(f'../figures/k_instability/k{stiffness}_a{activity}/theta.jpg')
+    fig.savefig(f'../figures/k_instability/k{stiffness}_a{activity}_n{name}/theta.jpg')
     fig.savefig(out_path+'/theta.jpg')
     fig.close()
 
+# Input Parameters
+parser = argparse.ArgumentParser()
+parser.add_argument("--k", type=int) 						        # stiffness
+parser.add_argument("--a", type=float) 								# activity
+parser.add_argument("--name", type=int) 							# name
+parser.add_argument("--N", type=int)                                # select the top N predominant wave vectors
+args = parser.parse_args()
+
+if args.k == None:
+    print('No parameters input. Use the default parameters provided by the program instead.')
+    k                   = 100
+    a                   = 1.0
+    name                = 1
+    N                   = 3
+    address             = f"../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
+else:
+    k                   = args.k
+    a                   = args.a
+    name                = args.name 
+    N                   = args.N
+    address             = f"../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
+
+main(address, k, a, name, N=N)
 
