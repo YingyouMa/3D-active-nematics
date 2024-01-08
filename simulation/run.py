@@ -18,7 +18,6 @@ DAMP                = 0.1       # Damping coefficient (one over gamma)
 BOND_LENGTH         = 0.5       # Equilibrium length of bond
 
 # Constants of simulation
-DUMP_N              = 200       # Total number of dumping files
 ARCHIVE_INTV_RAW    = 400_000   # Raw interval of storing the restart files. The real interval might be slightly changed
 DUMP_BASE           = 200       # Set the dumping intervals as multipole of DUMP_BASE
 TIME_STEP           = 0.001
@@ -51,17 +50,21 @@ name_list = np.arange(1, 2)
 def main(parameter, name):
 
     # Load the parameters and calculate the dump interval
-    stiffness, activity, max_time = parameter
+    stiffness, activity, max_time, dump_N = parameter
     stiffness = int(stiffness)
     activity  = float(activity)
     max_time  = int(max_time)
+    dump_N    = int(dump_N)
     max_step  = max_time/TIME_STEP
-    dump_intv = max_step/DUMP_N
+    dump_intv = max_step/dump_N
     if dump_intv > ARCHIVE_INTV_RAW:
         dump_intv = ARCHIVE_INTV_RAW
     dump_intv = round(dump_intv / DUMP_BASE) * DUMP_BASE
     max_step  = round(max_step / dump_intv) * dump_intv
-    max_time  = max_step * TIME_STEP
+    if max_step * TIME_STEP >= max_time:
+        max_time  = max_step * TIME_STEP
+    else:
+        max_time = ( max_step / dump_intv + 1 ) * dump_intv * TIME_STEP
     archive_intv = round( ARCHIVE_INTV_RAW / dump_intv) * dump_intv
     if archive_intv > max_step:
         archive_intv = max_step
