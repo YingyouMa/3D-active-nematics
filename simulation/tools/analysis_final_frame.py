@@ -130,7 +130,7 @@ def main(
     plt.legend()
     plt.title(f'frame={end_frame}')
     plt.savefig( final_path +'/corrS.jpg' )
-    plt.savefig(f'../figures/S_lp/{stiffness}_{activity}.jpg')
+    plt.savefig(f'../figures/S_lp/k{stiffness}_a{activity}.jpg')
     plt.close()
     
     print('analyzing Q')
