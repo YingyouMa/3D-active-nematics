@@ -44,7 +44,7 @@ print(check_table)
 parameters = np.array(pd.read_csv("parameters.csv"))
 
 # The directory's name of upcoming simulations
-name_list = np.arange(1, 2)
+name_list = np.arange(1, 4)
 
 # The function to run the simulation of each set of parameters
 def main(parameter, name):
@@ -64,7 +64,8 @@ def main(parameter, name):
     if max_step * TIME_STEP >= max_time:
         max_time  = max_step * TIME_STEP
     else:
-        max_time = ( max_step / dump_intv + 1 ) * dump_intv * TIME_STEP
+        max_step = max_step + dump_intv
+        max_time = max_step * TIME_STEP
     archive_intv = round( ARCHIVE_INTV_RAW / dump_intv) * dump_intv
     if archive_intv > max_step:
         archive_intv = max_step

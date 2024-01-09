@@ -83,3 +83,5 @@ run {max_step} upto
 
 shell echo "{max_time}" > end.txt
 
+write_restart restart/save.%.dat.1 restart/save.%.dat.2
+
