@@ -76,7 +76,7 @@ def main(parameter, name):
     print(f"Checking job {job_name}")
 
     if job_name in check_table['NAME'].values:
-        print(f"  Job '{job_name}' already running")
+        print(f" Already running")
         return 0
 
     path.mkdir(exist_ok=True, parents=True)
@@ -104,7 +104,7 @@ def main(parameter, name):
         except FileNotFoundError:
             save_version = 1
     else:
-        print("...  Starting new simulation...")
+        print("... Not found archived data. Starting new simulation...")
         lammps_script = "in.sim.lmp"
         sim_template = lammps_template
 
