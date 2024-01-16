@@ -126,7 +126,8 @@ def plot_loop(
             loop_coord, 
             tube_radius=0.25, tube_opacity=0.5, if_add_head=True,
             if_norm=False, 
-            norm_coord=[None,None,None], norm_color=(0,0,1), norm_length=20, norm_opacity=0.5, norm_width=1.0,
+            norm_coord=[None,None,None], norm_color=(0,0,1), norm_length=20, 
+            norm_opacity=0.5, norm_width=1.0, norm_orient=1,
             print_load_mayavi=False
             ):
 
@@ -143,7 +144,7 @@ def plot_loop(
     mlab.plot3d(*(loop_coord.T), tube_radius=tube_radius, opacity=tube_opacity)
 
     if if_norm == True:
-        loop_N = get_plane(loop_coord)
+        loop_N = get_plane(loop_coord) * norm_orient
         np.save('E:/loop_coord.npy', loop_coord)
         loop_center = loop_coord.mean(axis=0)
         for i, coord in enumerate(norm_coord):
@@ -171,7 +172,8 @@ def plot_loop_from_n(
                     if_smooth=True, window_ratio=3, order=3, N_out=160,
                     deform_funcs=[None,None,None],
                     if_norm=False, 
-                    norm_coord=[None,None,None], norm_color=(0,0,1), norm_length=20, norm_opacity=0.5, norm_width=1.0,
+                    norm_coord=[None,None,None], norm_color=(0,0,1), norm_length=20, 
+                    norm_opacity=0.5, norm_width=1.0, norm_orient=1
 
                     ):
 
@@ -192,7 +194,8 @@ def plot_loop_from_n(
                 tube_radius=tube_radius, tube_opacity=tube_opacity, 
                 if_add_head=if_add_head,
                 if_norm=if_norm,
-                norm_coord=norm_coord, norm_color=norm_color, norm_length=norm_length, norm_opacity=norm_opacity, norm_width=norm_width
+                norm_coord=norm_coord, norm_color=norm_color, norm_length=norm_length, 
+                norm_opacity=norm_opacity, norm_width=norm_width, norm_orient=norm_orient
                     ) 
 
 
@@ -297,7 +300,8 @@ def show_plane_2Ddirector(
                         n_box, height, 
                         color_axis=(1,0), height_visual=0,
                         space=3, line_width=2, density=1.5, 
-                        if_omega=True, S_box=0, S_threshold=0.18
+                        if_omega=True, S_box=0, S_threshold=0.18,
+                        if_cg=True
                           ):
     
     from mayavi import mlab
@@ -356,9 +360,10 @@ def show_plane_2Ddirector(
 
     lines = mlab.pipeline.stripper(src)
     plot_lines = mlab.pipeline.surface(lines, line_width=line_width)
-    cb = mlab.colorbar(object=plot_lines, orientation='vertical', nb_labels=5, label_fmt='%.2f')
-    cb.data_range = (0,1)
-    cb.label_text_property.color = (0,0,0)
+    if if_cg == True:
+        cb = mlab.colorbar(object=plot_lines, orientation='vertical', nb_labels=5, label_fmt='%.2f')
+        cb.data_range = (0,1)
+        cb.label_text_property.color = (0,0,0)
 
     if if_omega == True: 
 
@@ -409,11 +414,11 @@ def show_plane_2Ddirector(
 
 def show_loop_plane_2Ddirector(
                                 n_box, S_box,
-                                height_list, if_omega_list,
+                                height_list, if_omega_list=[1,1,1], plane_list=[1,1,1],
                                 height_visual_list=0, if_rescale_loop=True,
                                 figsize=(1920, 1360), bgcolor=(1,1,1), camera_set=0,
-                                norm_length=20, color_axis=(1,0),
-                                print_load_mayavi=False
+                                if_norm=True, norm_length=20, norm_orient=1, color_axis=(1,0),
+                                print_load_mayavi=False, if_cg=True
                                 ):
     
     if height_visual_list == 0:
@@ -431,6 +436,9 @@ def show_loop_plane_2Ddirector(
         coe_parabola = np.dot(height_visual_list, np.linalg.inv(coe_matrix))
         def parabola(x):
             return coe_parabola[0]*x**2 + coe_parabola[1]*x + coe_parabola[2]
+    else:
+        def parabola(x):
+            return x
 
 
     if print_load_mayavi == True:
@@ -444,13 +452,14 @@ def show_loop_plane_2Ddirector(
 
     plot_loop_from_n(n_box, 
                      tube_radius=0.75, tube_opacity=1, deform_funcs=[parabola,None,None],
-                     if_norm=True,
-                     norm_coord=[height_visual_list[0],None,None]
+                     if_norm=if_norm,
+                     norm_coord=[height_visual_list[0],None,None], norm_length=norm_length, norm_orient=norm_orient
                      )
 
-    show_plane_2Ddirector(n_box, height_list[0], height_visual=height_visual_list[0], if_omega=True, S_box=S_box)
-    show_plane_2Ddirector(n_box, height_list[1], height_visual=height_visual_list[1], if_omega=True, S_box=S_box)
-    show_plane_2Ddirector(n_box, height_list[2], height_visual=height_visual_list[2], if_omega=True, S_box=S_box)
+    for i, if_plane in enumerate(plane_list):
+        if if_plane == True:
+            show_plane_2Ddirector(n_box, height_list[i], height_visual=height_visual_list[i], if_omega=if_omega_list[i], S_box=S_box, if_cg=if_cg)
+
     if camera_set != 0: 
         mlab.view(*camera_set[:3], roll=camera_set[3])
 

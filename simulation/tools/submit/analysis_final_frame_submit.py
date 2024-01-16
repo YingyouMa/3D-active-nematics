@@ -43,7 +43,7 @@ for item in tobe_list:
         
         if len(end_directory)>0:
             analyzed = [re.findall(r"\d*\.*\d+", item)[-2:] for item in end_directory]
-            if [end, N_OUT] in analyzed:
+            if [str(int(end/TIME_STEP)), str(N_OUT)] in analyzed:
                 if IF_COVER== False:
                     print(stiffness, activity, name)
                 else:
