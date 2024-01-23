@@ -299,9 +299,9 @@ def show_loop_plane(
 def show_plane_2Ddirector(
                         n_box, height, 
                         color_axis=(1,0), height_visual=0,
-                        space=3, line_width=2, density=1.5, 
+                        space=3, line_width=2, line_density=1.5, 
                         if_omega=True, S_box=0, S_threshold=0.18,
-                        if_cg=True
+                        if_cb=True
                           ):
     
     from mayavi import mlab
@@ -327,7 +327,7 @@ def show_plane_2Ddirector(
     stl = get_streamlines(
                 y[indexy], z[indexz], 
                 n_plane[0].transpose(), n_plane[1].transpose(),
-                density=density)
+                density=line_density)
     stl = np.array(stl)
 
     connect_begin = np.where(np.abs( stl[1:,0] - stl[:-1,1]  ).sum(axis=-1) < 1e-5 )[0]
@@ -360,7 +360,7 @@ def show_plane_2Ddirector(
 
     lines = mlab.pipeline.stripper(src)
     plot_lines = mlab.pipeline.surface(lines, line_width=line_width)
-    if if_cg == True:
+    if if_cb == True:
         cb = mlab.colorbar(object=plot_lines, orientation='vertical', nb_labels=5, label_fmt='%.2f')
         cb.data_range = (0,1)
         cb.label_text_property.color = (0,0,0)
@@ -418,7 +418,8 @@ def show_loop_plane_2Ddirector(
                                 height_visual_list=0, if_rescale_loop=True,
                                 figsize=(1920, 1360), bgcolor=(1,1,1), camera_set=0,
                                 if_norm=True, norm_length=20, norm_orient=1, color_axis=(1,0),
-                                print_load_mayavi=False, if_cg=True
+                                line_width=2, line_density=1.5,
+                                print_load_mayavi=False, if_cb=True
                                 ):
     
     if height_visual_list == 0:
@@ -458,7 +459,10 @@ def show_loop_plane_2Ddirector(
 
     for i, if_plane in enumerate(plane_list):
         if if_plane == True:
-            show_plane_2Ddirector(n_box, height_list[i], height_visual=height_visual_list[i], if_omega=if_omega_list[i], S_box=S_box, if_cg=if_cg)
+            show_plane_2Ddirector(n_box, height_list[i], 
+                                  height_visual=height_visual_list[i], if_omega=if_omega_list[i], 
+                                  line_width=line_width, line_density=line_density,
+                                  S_box=S_box, if_cb=if_cb)
 
     if camera_set != 0: 
         mlab.view(*camera_set[:3], roll=camera_set[3])
