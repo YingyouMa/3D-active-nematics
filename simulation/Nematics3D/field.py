@@ -131,8 +131,6 @@ def local_box_diagonalize(n_box):
 
 def interpolate_subbox(vertex_indices, axes_unit, loop_box, n, S, whole_box_grid_size,
                         margin_ratio=2, num_min=20, ratio=[1,1,1]):
-    
-    from itertools import product
 
     diagnal = vertex_indices[1] - vertex_indices[0]
     num_origin = np.einsum('i, ji -> j', diagnal, axes_unit)
@@ -192,12 +190,51 @@ def interpolate_subbox(vertex_indices, axes_unit, loop_box, n, S, whole_box_grid
 def exp_decay(x, A, t):
     return A * np.exp(-x/t)
 
+# -------------------------------------------------------------------------------------
+# Change the correlation function into radial coordinate and fit with exponential decay
+# -------------------------------------------------------------------------------------
+
+def corr_sphere_fit(corr, max_init, width=200, skip_init=25, lp0=0.5, iterate=2, skip_ratio=1, max_ratio=10):
+
+    from scipy.optimize import curve_fit
+
+    N = np.shape(corr)[0]
+    corr = corr[:max_init, :max_init, :max_init].reshape(-1)
+
+    box = list(product(np.arange(max_init), np.arange(max_init), np.arange(max_init)))
+    box = np.array(box).reshape((max_init,max_init,max_init,3))
+    r = np.sum(box**2, axis=-1).reshape(-1)
+    r = np.sqrt(r) / N * width
+    index = r.argsort()
+    r = r[index]
+    corr = corr[index]
+
+    popt, pcov = curve_fit(exp_decay, 
+                           r, corr, 
+                           p0=[corr[0],lp0])
+    skip = skip_init
+
+    for i in range(iterate):
+        skip_length = popt[1] * skip_ratio
+        max_length  = popt[1] * max_ratio
+        select = ( r > skip_length ) * ( r < max_length )
+        popt, pcov = curve_fit(exp_decay, 
+                                r[select], corr[select], 
+                                p0=[corr[0], popt[1]])
+        skip = np.sum(r <= skip_length)
+
+    corr = corr[ r<max_length ]
+    r = r[r<max_length]
+    perr = np.sqrt(np.diag(pcov))[1]
+
+    return popt, r, corr, skip, perr
+
 
 # ------------------------------------------------------
 # Derive the persistent length of S by Fourier transfrom
 # ------------------------------------------------------
 
-def calc_lp_S(S, max_init, width=200, skip_init=25, iterate=2, skip_ratio=1, max_ratio=10):
+def calc_lp_S(S, max_init, width=200, skip_init=25, iterate=2, skip_ratio=1, max_ratio=10, lp0=0.5):
 
     from scipy.optimize import curve_fit
 
@@ -205,74 +242,36 @@ def calc_lp_S(S, max_init, width=200, skip_init=25, iterate=2, skip_ratio=1, max
 
     S_fourier = np.fft.fftn(S - np.average(S))
     S_spectrum = np.absolute(S_fourier)**2
-    S_cor = np.real(np.fft.ifftn(S_spectrum)) / N**3
+    S_corr = np.real(np.fft.ifftn(S_spectrum)) / N**3
 
-    S_cor_local = np.zeros((max_init**3,2))
-    
-    index = 0
-    for (i,j,k) in product(np.arange(max_init), np.arange(max_init), np.arange(max_init)):
-        S_cor_local[index] = [np.sqrt(i**2 + j**2 + k**2), S_cor[i,j,k] ]
-        index += 1
-        
-    S_cor_local[:,0] *= width/N
-    S_cor_local = S_cor_local[S_cor_local[:, 0].argsort()]
+    popt, r, corr, skip, perr = corr_sphere_fit(S_corr, max_init,
+                                          width=width, skip_init=skip_init, lp0=lp0, iterate=iterate,
+                                          skip_ratio=skip_ratio, max_ratio=max_ratio
+                                          )
 
-    popt, pcov = curve_fit(exp_decay, 
-                           S_cor_local[skip_init:,0], S_cor_local[skip_init:,1], 
-                           p0=[S.var(), 0.5])
-    skip = skip_init
-
-    for i in range(iterate-1):
-        skip_length = popt[1] * skip_ratio
-        max_length  = popt[1] * max_ratio
-        select = ( S_cor_local[:, 0] > skip_length ) * ( S_cor_local[:, 0] < max_length )
-        popt, pcov = curve_fit(exp_decay, 
-                                S_cor_local[select,0], S_cor_local[select,1], 
-                                p0=[S.var(), popt[1]])
-        skip = np.sum(S_cor_local[:, 0] <= skip_length)
-        
-    S_cor_local = S_cor_local[S_cor_local[:, 0] < max_length]
-
-    return popt, S_cor_local, skip
+    return popt, r, corr, skip, perr
 
 
 # -------------------------------------------------------------
 # Calculate the persistent length of n with Legendre polynomial
 # -------------------------------------------------------------
 
-def calc_lp_n(n, max_N=0, width=200, head_skip=25):
+def calc_lp_n(n, max_init, width=200, skip_init=25, iterate=2, skip_ratio=1, max_ratio=10, lp0=0.5):
 
     from scipy.optimize import curve_fit
 
     N = np.shape(n)[0]
 
-    n_core = n[ max_N:-max_N, max_N:-max_N, max_N:-max_N ]
-    
-    n_corr = np.zeros(( max_N, max_N, max_N ))
+    Q = np.einsum('nmli, nmlj -> nmlij', n, n)
 
-    start = time.time()
-    print('start to calculate lp_n')
-    for (i,j,k) in product(np.arange(max_N), np.arange(max_N), np.arange(max_N)):
-        n_corr[i,j,k] = np.average( 
-                1.5 * np.sum( n_core * n[ i+max_N:i-max_N, j+max_N:j-max_N, k+max_N:k-max_N ], axis=-1 )**2 - 0.5 
-                                    )
-        # print(i, j, k, round(time.time()-start, 1))
-    
-        if (j,k) == (max_N-1, max_N-1):
-            print(f'{i+1}/{max_N}', str(round(time.time()-start, 1))+'s')
-            start = time.time()
+    Q_fourier = np.fft.fftn(Q - np.average(Q, axis=(0,1,2)), axes=(0,1,2))
+    Q_spectrum = np.absolute(Q_fourier)**2
+    Q_corr = np.real(np.fft.ifftn(Q_spectrum, axes=(0,1,2))) / N**3
+    Q_corr = np.sum(Q_corr, axis=(-1,-2))
 
-        
-    n_cor_local = np.zeros((max_N**3,2))
-    
-    index = 0
-    for (i,j,k) in product(np.arange(max_N), np.arange(max_N), np.arange(max_N)):
-        n_cor_local[index] = [np.sqrt(i**2 + j**2 + k**2), n_corr[i,j,k] ]
-        index += 1
+    popt, r, corr, skip, perr = corr_sphere_fit(Q_corr, max_init,
+                                          width = width, skip_init=skip_init, lp0=lp0, iterate=iterate,
+                                          skip_ratio=skip_ratio, max_ratio=max_ratio
+                                          )
 
-    n_cor_local[:,0] *= width/N
-    n_cor_local = n_cor_local[n_cor_local[:, 0].argsort()]
-
-    popt, pcov = curve_fit(exp_decay, n_cor_local[head_skip:,0], n_cor_local[head_skip:,1], p0=[1,0.5])
-
-    return popt, n_cor_local
+    return popt, r, corr, skip, perr

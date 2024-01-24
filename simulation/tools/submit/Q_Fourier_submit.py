@@ -13,6 +13,8 @@ os.chdir('..')
 
 DENSITY = 0.7
 
+IF_END_ONLY = False
+
 parameters = pd.read_csv("../parameters.csv")
 par_list = []
 tobe_list = glob.glob( f'../data/density_{DENSITY:0.2f}/*/*/*/end.txt' )

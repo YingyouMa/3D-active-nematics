@@ -16,10 +16,11 @@ sys.path
 sys.path.append(r'E:\Program\GitHub\3D-active-nematics\simulation')
 sys.path
 '''
-from Nematics3D.field import calc_lp_S, exp_decay
+from Nematics3D.field import calc_lp_S, calc_lp_n, exp_decay
 from Nematics3D.elastic import get_deform_Q
 
 Path('../figures/S_lp').mkdir(exist_ok=True, parents=True)
+Path('../figures/n_lp').mkdir(exist_ok=True, parents=True)
 
 DENSITY     = 0.7
 TIME_STEP   = 0.001
@@ -98,9 +99,8 @@ def main(
                 np.save( address + f"/diagonal/{N_out}/S_{end_frame}.npy", S )
                 np.save( address + f"/diagonal/{N_out}/n_{end_frame}.npy", n )
 
+    print('Start to analyze diagonalized data')
     
-    
-
     S = np.load( address + f"/diagonal/{N_out}/S_{end_frame}.npy" )
     n = np.load( address + f"/diagonal/{N_out}/n_{end_frame}.npy" )
     
@@ -116,24 +116,42 @@ def main(
     lp_skip  = int( N_out / lp_skip_init_ratio )
     
     output_S = calc_lp_S(S, max_init=lp_max, width=WIDTH, skip_init=lp_skip) 
-    lp_popt_S, S_cor_local, skip_S = output_S
+    lp_popt_S, r_S, corr_S, skip_S, perr_S = output_S
     
     plt.figure(figsize=(16,9))
-    plt.plot(S_cor_local[:skip_S,0], S_cor_local[:skip_S,1], 
+    plt.plot(r_S[:skip_S], corr_S[:skip_S], 
              'o', color='red', label='experiment (skipped)')
-    plt.plot(S_cor_local[skip_S:,0], S_cor_local[skip_S:,1], 
+    plt.plot(r_S[skip_S:], corr_S[skip_S:], 
              'o', color='blue', label='experiment (fitted)')
-    plt.plot(S_cor_local[skip_S:,0], exp_decay(S_cor_local[skip_S:,0], *lp_popt_S), 
+    plt.plot(r_S[skip_S:], exp_decay(r_S[skip_S:], *lp_popt_S), 
              color='green', label=rf'$l_p$={round(lp_popt_S[1],2)}')
-    plt.xlabel(r'$\Delta$r')
-    plt.ylabel(r'$\langle \Delta S(r) \Delta S(r+\Delta r)\rangle_{space}$',)
+    plt.xlabel(r'$\delta r$')
+    plt.ylabel(r'$\langle \delta S(r) \delta S(r+\Delta r)\rangle_r$',)
     plt.legend()
     plt.title(f'frame={end_frame}')
     plt.savefig( final_path +'/corrS.jpg' )
     plt.savefig(f'../figures/S_lp/n{name}_k{stiffness}_a{activity}.jpg')
     plt.close()
+
+    output_n = calc_lp_n(n, max_init=lp_max, width=WIDTH, skip_init=lp_skip) 
+    lp_popt_n, r_n, corr_n, skip_n, perr_n = output_n
     
-    print('analyzing Q')
+    plt.figure(figsize=(16,9))
+    plt.plot(r_n[:skip_n], corr_n[:skip_n], 
+             'o', color='red', label='experiment (skipped)')
+    plt.plot(r_n[skip_n:], corr_n[skip_n:], 
+             'o', color='blue', label='experiment (fitted)')
+    plt.plot(r_n[skip_n:], exp_decay(r_n[skip_n:], *lp_popt_n), 
+             color='green', label=rf'$l_p$={round(lp_popt_n[1],2)}')
+    plt.xlabel(r'$\Delta r$')
+    plt.ylabel(r'$\langle \delta \hat{Q}(r) : \delta \hat{Q}(r+\Delta r)\rangle_r$',)
+    plt.legend()
+    plt.title(f'frame={end_frame}')
+    plt.savefig( final_path +'/corrn.jpg' )
+    plt.savefig(f'../figures/n_lp/n{name}_k{stiffness}_a{activity}.jpg')
+    plt.close()
+    
+    print('analyzing elastic energy')
     deform = get_deform_Q(n, L, 2)
     deform = np.einsum('inml, nml -> inml', deform, S[1:-1,1:-1,1:-1]**2)
     splay, twist, bend = np.sum(deform, axis=(1,2,3)) * (L/N_out)**3
@@ -142,6 +160,9 @@ def main(
         "S_mean":   S_mean,
         "S_mode":   S_mode,
         "lp_S":     lp_popt_S[1],
+        "lp_n":     lp_popt_n[1],
+        "err_lp_S": perr_S,
+        "err_lp_n": perr_n,  
         "splay":    splay,
         "twist":    twist,
         "bend":     bend
@@ -154,7 +175,10 @@ def main(
         fw.create_dataset('splay', data=deform[0])
         fw.create_dataset('twist', data=deform[1])
         fw.create_dataset('bend', data=deform[2])
-        fw.create_dataset('S_correlation', data=S_cor_local)
+        fw.create_dataset('r_S', data=r_S)
+        fw.create_dataset('corr_S', data=corr_S)
+        fw.create_dataset('r_n', data=r_n)
+        fw.create_dataset('corr_n', data=corr_n)
         
         
 # Input Parameters
