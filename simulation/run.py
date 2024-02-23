@@ -18,7 +18,7 @@ DAMP                = 0.1       # Damping coefficient (one over gamma)
 BOND_LENGTH         = 0.5       # Equilibrium length of bond
 
 # Constants of simulation
-ARCHIVE_INTV_RAW    = 300_000   # Raw interval of storing the restart files. The real interval might be slightly changed
+ARCHIVE_INTV_RAW    = 800_000   # Raw interval of storing the restart files. The real interval might be slightly changed
 DUMP_BASE           = 200       # Set the dumping intervals as multipole of DUMP_BASE
 TIME_STEP           = 0.001
 

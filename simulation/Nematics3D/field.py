@@ -23,16 +23,22 @@ def diagonalizeQ(qtensor):
 
     Parameters
     ----------
-    qtensor:  numpy array, tensor order parameter Q of each grid
-              shape: (N, M, L, 5), where N, M and L are the number of grids in each dimension.
-              qtensor[..., 0] = Q_xx, qtensor[..., 1] = Q_xy, and so on. 
+    qtensor : numpy array, N x M x L x 5  or  N x M x L x 3x 3
+              tensor order parameter Q of each grid
+              N, M and L are the number of grids in each dimension.
+              The Q tensor for each grid could be represented by 5 numbers or 3 x 3 = 9 numbers
+              If 5, then qtensor[..., 0] = Q_xx, qtensor[..., 1] = Q_xy, and so on. 
+              If 3 x 3, then qtensor[..., 0,0] = Q_xx, qtensor[..., 0,1] = Q_xy, and so on.
+              
 
     Returns
     -------
-    S:  numpy array, the biggest eigenvalue as the scalar order parameter of each grid
-        shape: (N, M, L)
-    n:  numpy array, the eigenvector corresponding to the biggest eigenvalue, as the director, of each grid.
-        shape: (N, M, L)
+    S : numpy array, N x M x L
+        the biggest eigenvalue as the scalar order parameter of each grid
+
+    n : numpy array, N x M x L x 3
+        the eigenvector corresponding to the biggest eigenvalue, as the director, of each grid.
+
     """
     
     # derive Q field and calculate it with np.einsum() and np.linalg.det()
