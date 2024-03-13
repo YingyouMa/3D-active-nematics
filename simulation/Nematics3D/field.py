@@ -39,9 +39,12 @@ def diagonalizeQ(qtensor):
     n : numpy array, N x M x L x 3
         the eigenvector corresponding to the biggest eigenvalue, as the director, of each grid.
 
+
+    Dependencies
+    ------------
+    - numpy: 1.22.0
+
     """
-    
-    # derive Q field and calculate it with np.einsum() and np.linalg.det()
 
     N, M, L = np.shape(qtensor)[:3]
 
@@ -137,6 +140,8 @@ def local_box_diagonalize(n_box):
 
 def interpolate_subbox(vertex_indices, axes_unit, loop_box, n, S, whole_box_grid_size,
                         margin_ratio=2, num_min=20, ratio=[1,1,1]):
+    
+    #! Rewrite to be easily used in simple interpolation 
 
     diagnal = vertex_indices[1] - vertex_indices[0]
     num_origin = np.einsum('i, ji -> j', diagnal, axes_unit)

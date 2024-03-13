@@ -18,6 +18,7 @@ sys.path
 '''
 from Nematics3D.field import calc_lp_S, calc_lp_n, exp_decay
 from Nematics3D.elastic import get_deform_Q
+from Nematics3D.disclination import defect_detect, ordered_bulk_size
 
 Path('../figures/S_lp').mkdir(exist_ok=True, parents=True)
 Path('../figures/n_lp').mkdir(exist_ok=True, parents=True)
@@ -31,11 +32,10 @@ plt.rcParams.update({'font.size': 30})
 
 def main(
         address, stiffness, activity, name,
-        sig=2, N_out=400, L=200, 
-        lp_max_init_ratio=8, lp_skip_init_ratio=40
+        sig=2, N_out=400, L=WIDTH,
+        lp_max_init_ratio=8, lp_skip_init_ratio=40,
+        if_sep=False, if_save_out=True
         ):
-    
-    # global lp_popt_S, S_cor_local
     
     coarse_path = address + "/coarse/"
 
@@ -125,12 +125,13 @@ def main(
              'o', color='blue', label='experiment (fitted)')
     plt.plot(r_S[skip_S:], exp_decay(r_S[skip_S:], *lp_popt_S), 
              color='green', label=rf'$l_p$={round(lp_popt_S[1],2)}')
-    plt.xlabel(r'$\delta r$')
+    plt.xlabel(r'$\Delta r$')
     plt.ylabel(r'$\langle \delta S(r) \delta S(r+\Delta r)\rangle_r$',)
     plt.legend()
     plt.title(f'frame={end_frame}')
     plt.savefig( final_path +'/corrS.jpg' )
-    plt.savefig(f'../figures/S_lp/n{name}_k{stiffness}_a{activity}.jpg')
+    if if_save_out:
+        plt.savefig(f'../figures/S_lp/n{name}_k{stiffness}_a{activity}.jpg')
     plt.close()
 
     output_n = calc_lp_n(n, max_init=lp_max, width=WIDTH, skip_init=lp_skip) 
@@ -148,24 +149,38 @@ def main(
     plt.legend()
     plt.title(f'frame={end_frame}')
     plt.savefig( final_path +'/corrn.jpg' )
-    plt.savefig(f'../figures/n_lp/n{name}_k{stiffness}_a{activity}.jpg')
+    if if_save_out:
+        plt.savefig(f'../figures/n_lp/n{name}_k{stiffness}_a{activity}.jpg')
     plt.close()
     
     print('analyzing elastic energy')
     deform = get_deform_Q(n, L, 2)
     deform = np.einsum('inml, nml -> inml', deform, S[1:-1,1:-1,1:-1]**2)
     splay, twist, bend = np.sum(deform, axis=(1,2,3)) * (L/N_out)**3
+
+    print('detecting defects')
+    defect_indices = defect_detect(n, boundary=True, print_time=True)
+    print(f'find {len(defect_indices)} defects')
+
+    if if_sep:
+        print('analyzing ordered bulk size')
+        defect_sep = ordered_bulk_size(defect_indices, N_out, WIDTH).mean()
+    else:
+        defect_sep = None
+
     
     result = {
-        "S_mean":   S_mean,
-        "S_mode":   S_mode,
-        "lp_S":     lp_popt_S[1],
-        "lp_n":     lp_popt_n[1],
-        "err_lp_S": perr_S,
-        "err_lp_n": perr_n,  
-        "splay":    splay,
-        "twist":    twist,
-        "bend":     bend
+        "S_mean":       S_mean,
+        "S_mode":       S_mode,
+        "lp_S":         lp_popt_S[1],
+        "lp_n":         lp_popt_n[1],
+        "err_lp_S":     perr_S,
+        "err_lp_n":     perr_n,  
+        "splay":        splay,
+        "twist":        twist,
+        "bend":         bend,
+        "defect_num":   len(defect_indices),
+        'defect_sep':   defect_sep
         }
     
     with open(final_path+"/result.json", "w") as f:
@@ -179,6 +194,7 @@ def main(
         fw.create_dataset('corr_S', data=corr_S)
         fw.create_dataset('r_n', data=r_n)
         fw.create_dataset('corr_n', data=corr_n)
+        fw.create_dataset('defect_indices', data=defect_indices)
         
         
 # Input Parameters
@@ -188,6 +204,7 @@ parser.add_argument("--a", type=float) 								# activity
 parser.add_argument("--name", type=int) 							# name
 parser.add_argument("--sig", default=2, type=int) 					# sigma for Gaussian filter
 parser.add_argument("--N_out", default=400, type=int)               # the final grid dimensions in real space
+parser.add_argument("--N_out_sep", default=128, type=int)           # the final grid dimensions in real space, to calculate ordered bulk size
 parser.add_argument("--lp_max_init_ratio", default=5, type=int)			
 parser.add_argument("--lp_skip_init_ratio", default=18, type=int)
 args = parser.parse_args()
@@ -200,6 +217,7 @@ if args.k == None:
     address             = f"../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
     sig                 = 2
     N_out               = 128
+    N_out_sep           = None
     lp_max_init_ratio   = 5
     lp_skip_init_ratio  = 18
 else:
@@ -209,9 +227,15 @@ else:
     address             = f"../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
     sig                 = args.sig
     N_out               = args.N_out
+    N_out_sep           = args.N_out_sep
     lp_max_init_ratio   = args.lp_max_init_ratio
     lp_skip_init_ratio  = args.lp_skip_init_ratio
 
 main(address, k, a, name, 
-     sig=sig, N_out=N_out, L=200, 
+     sig=sig, N_out=N_out, L=WIDTH, 
      lp_max_init_ratio=lp_max_init_ratio, lp_skip_init_ratio=lp_skip_init_ratio)
+
+main(address, k, a, name, 
+     sig=sig, N_out=N_out_sep, L=WIDTH, 
+     lp_max_init_ratio=lp_max_init_ratio, lp_skip_init_ratio=lp_skip_init_ratio,
+     if_sep=True, if_save_out=False)

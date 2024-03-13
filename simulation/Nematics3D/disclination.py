@@ -373,6 +373,8 @@ def show_loop_plane(
                     print_load_mayavi=False
                     ):
     
+    #! Unify origin (index or sapce unit)
+    
     if print_load_mayavi == True:
         now = time.time()
         from mayavi import mlab
@@ -596,6 +598,7 @@ def show_loop_plane_2Ddirector(
                                 figsize=(1920, 1360), bgcolor=(1,1,1), camera_set=0,
                                 if_norm=True, norm_length=20, norm_orient=1, norm_color=(0,0,1),
                                 line_width=2, line_density=1.5,
+                                tube_radius=0.75, tube_opacity=1,
                                 print_load_mayavi=False, if_cb=True, n_colormap='blue-red'
                                 ):
     
@@ -629,7 +632,8 @@ def show_loop_plane_2Ddirector(
     mlab.figure(size=figsize, bgcolor=bgcolor)
 
     plot_loop_from_n(n_box, 
-                     tube_radius=0.75, tube_opacity=1, deform_funcs=[parabola,None,None],
+                     tube_radius=tube_radius, tube_opacity=tube_opacity, 
+                     deform_funcs=[parabola,None,None],
                      if_norm=if_norm,
                      norm_coord=[height_visual_list[0],None,None], norm_length=norm_length, norm_orient=norm_orient, norm_color=norm_color,
                      )
@@ -650,7 +654,7 @@ def show_loop_plane_2Ddirector(
         
 def plot_defect(n, 
                 origin=[0,0,0], grid=128, width=200,
-                plot_defect=True, defect_threshold=0, defect_color=(0.2,0.2,0.2), scale_defect=2,
+                if_plot_defect=True, defect_threshold=0, defect_color=(0.2,0.2,0.2), scale_defect=2,
                 plot_n=True, n_interval=1, ratio_n_dist = 5/6,
                 print_load_mayavi=False
                 ):
@@ -708,7 +712,7 @@ def plot_defect(n,
         lut_manager = mlab.colorbar(object=vector)
         lut_manager.data_range=(0,1.3)
 
-    if plot_defect == True:
+    if if_plot_defect == True:
 
         defect_indices = defect_detect(n, threshold=defect_threshold)
         defect_coords  = defect_indices / grid * width
@@ -957,8 +961,9 @@ def sample_far(num):
 def visual_disclinations(lines, N, min_length=30, radius=0.5,
                          window_cross=33, window_loop=21,
                          N_ratio_cross=1, N_ratio_loop=1.5,
-                         loop_color=(0,0,0), wrap=True):
+                         loop_color=(0,0,0), wrap=True, if_lines_added=False):
     '''
+    #! Color_list
     Visualize disclination lines in 3D using Mayavi.
 
     Parameters
@@ -1005,6 +1010,10 @@ def visual_disclinations(lines, N, min_length=30, radius=0.5,
            If wrap the lines with periodic boundary condition.
            Default is True
 
+    if_lines_added : bool, optional
+                     If the lines have already been added the mid-points
+                     Default is False.
+
     Returns
     -------
     None
@@ -1029,8 +1038,9 @@ def visual_disclinations(lines, N, min_length=30, radius=0.5,
     lines = lines[ [len(line)>=min_length for line in lines] ] 
 
     # Add mid-points to each disclination line
-    for i, line in enumerate(lines):
-        lines[i] = add_mid_points_disclination(line)
+    if if_lines_added == False:
+        for i, line in enumerate(lines):
+            lines[i] = add_mid_points_disclination(line)
 
     # Separate lines into loops and crosses based on end-to-end distance and smoothen them.
     loops = []
@@ -1100,7 +1110,7 @@ def ordered_bulk_size(defect_indices, N, width, if_print=True):
     width : float
             Width of the simulation box in the unit of real length (not indices).
 
-    if_print: bool, optional
+    if_print : bool, optional
               Flag to print the time taken for each octant.
               Default is True.
 
@@ -1289,7 +1299,7 @@ def extract_loop(defect_indices, N, dilate_times=2,
                 Default is an empty string.
 
     Saves
-    -------
+    -----
     'summary.xyz.gz' : summary, pandas file
                        The information of each point of thickened disclination loops.
                        Include x, y, z coordinates (indices), genus and label of this loop.
@@ -1352,10 +1362,11 @@ def extract_loop(defect_indices, N, dilate_times=2,
     num_pts = int(np.count_nonzero(binimg)/8)
     print(f"Found {num_pts} low-order points")
 
-    # Prepare 
+    # Prepare the array to record genus of each defect
     grid_origin = grid_origin/2
     grid_result = np.zeros((N, N, N))
 
+    # Initialize arrays to store loop information
     summary = np.empty(8*num_pts,
                        dtype=[
                            ("pos-x", "uint16"),
@@ -1376,7 +1387,7 @@ def extract_loop(defect_indices, N, dilate_times=2,
                        ]
                        )
     
-    # this finds all of the objects (dilated disclinations)
+    # Label connected components in the binary grid
     labels, num_objects = ndimage.label(binimg)
 
     offset = 0
@@ -1384,6 +1395,7 @@ def extract_loop(defect_indices, N, dilate_times=2,
     loop = 0
     for i, obj in enumerate(ndimage.find_objects(labels)):
         
+        # Ensure object boundaries are within the extended grid
         xlo = max(obj[0].start, 0)
         ylo = max(obj[1].start, 0)
         zlo = max(obj[2].start, 0)
@@ -1392,13 +1404,16 @@ def extract_loop(defect_indices, N, dilate_times=2,
         zhi = min(obj[2].stop, 2*N)
         boundary = [xlo, ylo, zlo, xhi, yhi, zhi]
         
+        # Exclude the crosses and loops outside of the box and  
         if (0 in boundary) or (2*N in boundary) or max(xlo, ylo, zlo)>N:
             continue
         
         label += 1
         
+        # Define the object within the extended grid
         obj = (slice(xlo, xhi), slice(ylo, yhi), slice(zlo, zhi))
         
+        # Extract the object from the labeled grid
         img = (labels[obj] == i+1)
     
         # calculate Euler number, defined as # objects + # holes - # loops
@@ -1408,6 +1423,8 @@ def extract_loop(defect_indices, N, dilate_times=2,
         # calculate the number of loop by Euler number
         g = 1 - g
         
+        # box : The vortices of box containing the loop
+        # coord : The indices of each point of thickened loop
         pos = np.nonzero(img)
         shift = pos[0].size
         
@@ -1419,7 +1436,8 @@ def extract_loop(defect_indices, N, dilate_times=2,
 
         if g == 1:
             loop += 1
-    
+
+        # Update summary arrays with loop information
         summary['pos-x'][offset:offset+shift] = coord[0]
         summary['pos-y'][offset:offset+shift] = coord[1]
         summary['pos-z'][offset:offset+shift] = coord[2]
@@ -1434,14 +1452,17 @@ def extract_loop(defect_indices, N, dilate_times=2,
     
         offset += shift
 
+        # Update the genus information of each defect
         grid_result[tuple(coord%N)] = g+1
         
+    # grid_result : each point of defect labeled by the genus of lines that the defect belongs to.
     grid_result = grid_result + grid_origin
     grid_result[grid_result%1==0] = 0.5
     grid_result = grid_result - 0.5
 
     np.save(save_path + save_head + "grid_g.npy", grid_result)
     
+    # Trim summary arrays to remove unused space
     summary = summary[:offset]
     summary_wrap = summary_wrap[:offset]
     summary = pd.DataFrame(summary)
@@ -1451,3 +1472,131 @@ def extract_loop(defect_indices, N, dilate_times=2,
     save_xyz(save_path + save_head + "summary_wrap.xyz.gz", summary_wrap)
                     
     print(f'Found {loop} loops\n')
+
+
+def visual_loops_genus(lines_origin, N, grid_g, 
+                       window_loop=21, N_ratio_loop=1.5, radius=2,
+                       if_lines_added=False, wrap=True, 
+                       color_list=[]):
+    
+    '''
+
+    #! Color and grid_g seperately
+
+    Visualize loops using Mayavi.
+    Loops are colored according to their genus.
+
+    Given the director field n, visualize the disclination loops by the genus as the following:
+
+    - Detect the defects (defect_indices) in the director field by defect_detect(n, boundary=True)
+
+    - Find the thickened disclination loops and their genus by extract_loop(defect_indices, N)
+      It will provide grid_g, labelling each defect with the genus of the line that this defect belongs to.
+    
+    - Sort the defects into different lines by lines = defect_connected(defect_indices, N)
+      Need this step to smoothen the lines.
+
+    - visual_loops_genus(lines, N, grid_g)
+
+    Parameters
+    ----------
+    lines : list of arrays
+            List of disclination lines, where each line is represented as an array of coordinates.
+            Usually provided by defect_connected()
+
+    N : int
+        Size of the grid in each dimension.
+
+    grid_g : numpy.ndarray, shape (N, N, N)
+             The defects indices and genus represented by grid of box.
+             N is the size of the 3D grid along each dimension.
+             If one point is 0, there is no defect here.
+             If one point is x (not zero), there is a defect here and the genus of this line is x-1.
+             Usually provided by extract_loop().
+
+    window_loop : int, optional
+                  Window length for smoothening the loops using Savitzky-Golay filter.
+                  Default is 21.
+
+    N_ratio_loop : float, optional
+                   Ratio to determine the number of points in the output smoothened loop.
+                   N_out = N_ratio_loop * len(loop).
+                   Default is 1.5.
+
+    radius : int, optional
+             Scale factor for visualizing the loops.
+             Default is 2.
+
+    if_lines_added : bool, optional
+                     Flag indicating whether midpoints have been added to disclination lines.
+                     Default is False.
+
+    wrap : bool, optional
+           Flag indicating whether to wrap the loops in visualization
+           Default is True.
+
+    color_list : array-like, optional, shape (M,)
+                 The color for each disclination loop. Each value belongs to [0,1]
+                 The colormap is derived by blue_red_in_white_bg() in the same module.
+                 0 for blue, 1 for red.
+                 If the length of color_list is 0, the loops are colored by genus.
+                 Default is [] (loops colored by genus)
+
+
+    Dependencies
+    ------------
+    - mayavi: 4.7.4
+    - scipy: 1.7.3
+    - numpy: 1.22.0
+    '''
+
+    from mayavi import mlab
+    from scipy.spatial.distance import cdist
+
+    # If midpoints are not added to disclination lines, add them
+    lines = 1 * lines_origin
+    if if_lines_added == False:
+        for i, line in enumerate(lines):
+            lines[i] = add_mid_points_disclination(line)
+
+    # Initialize an array to store genus information for each line
+    genus_lines = np.zeros(len(lines))
+
+    # Get coordinates of defects in the grid
+    defect_g = np.array(np.nonzero(grid_g)).T
+
+    # Find genus for each line based on the proximity of its head to defect points
+    for i, line in enumerate(lines):
+        head = line[0]%N
+        dist = cdist([head], defect_g)
+        if np.min(dist) > 1:
+            genus_lines[i] = -1
+        else:
+            genus_lines[i] = grid_g[tuple(defect_g[np.argmin(dist)])] - 1
+
+    lines = np.array(lines, dtype=object)
+    loops = lines[genus_lines>-1]
+    genus_loops = genus_lines[genus_lines > -1]
+
+    mlab.figure(bgcolor=(1,1,1))
+
+    colormap = blue_red_in_white_bg()
+
+    for i, loop in enumerate(loops):
+        genus = genus_loops[i]
+        if len(color_list) == 0:
+            if genus == 0:
+                color = (0,0,1)
+            elif genus == 1:
+                color = (1,0,0)
+            elif genus > 1:
+                color= (0,0,0)
+        else:
+            color = colormap[int(color_list[i]*510)]
+        loop = smoothen_line(loop, window_length=window_loop, mode='wrap', 
+                             N_out=int(N_ratio_loop*len(loop)))
+        
+        if wrap == True:
+            loop = loop%N
+
+        mlab.points3d(*(loop.T), scale_factor=radius, color=tuple(color))

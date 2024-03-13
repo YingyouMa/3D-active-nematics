@@ -79,7 +79,7 @@ def main(address, stiffness, activity, name, N=3, if_cover=False):
         result[i], S_mean[i] = analyze(address, frame, 128, N=N)
         print(f'{i+1-len(frame_old)}/{len(frames)-len(frame_old)}')
 
-    Path(out_path).mkdir(exist_ok=True)
+    Path(out_path).mkdir(exist_ok=True, parents=True)
 
     np.save(out_path+'/result', result)
     np.save(out_path+'/S_mean', S_mean)
