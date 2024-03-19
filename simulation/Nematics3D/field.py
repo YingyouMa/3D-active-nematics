@@ -42,7 +42,7 @@ def diagonalizeQ(qtensor):
 
     Dependencies
     ------------
-    - numpy: 1.22.0
+    - NumPy: 1.22.0
 
     """
 

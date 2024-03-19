@@ -104,7 +104,7 @@ def main(address, stiffness, activity, name, N=3, if_cover=False):
     ax.legend(lns, labs, loc=loc1)
     ax.set_title('value of largest Fourier coefficient')
     ax.set_xlabel('time')
-    fig.savefig(f'../figures/k_instability/n{name}_k{stiffness}_a{activity}_Fourier.jpg')
+    fig.savefig(f'../analysis/figures/k_instability/n{name}_k{stiffness}_a{activity}_Fourier.jpg')
     fig.savefig(out_path+'/Fourier.jpg')
     plt.close(fig)
     
@@ -121,7 +121,7 @@ def main(address, stiffness, activity, name, N=3, if_cover=False):
     ax.legend(lns, labs, loc=loc2)
     ax.set_title(r'$\bar{\theta}$')
     ax.set_xlabel('time')
-    fig.savefig(f'../figures/k_instability/n{name}_k{stiffness}_a{activity}_theta.jpg')
+    fig.savefig(f'../analysis/figures/k_instability/n{name}_k{stiffness}_a{activity}_theta.jpg')
     fig.savefig(out_path+'/theta.jpg')
     plt.close(fig)
 

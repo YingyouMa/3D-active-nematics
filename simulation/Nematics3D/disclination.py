@@ -14,7 +14,7 @@ def defect_detect(n_origin, threshold=0, boundary=False, print_time=False):
 
     Parameters
     ----------
-    n_origin : numpy.ndarray, N x M x L x 3
+    n_origin : numpy.ndarray, (N, M, L, 3)
                Array containing the 3D director field.
                N, M, L is the number of grids in each dimension
 
@@ -40,7 +40,7 @@ def defect_detect(n_origin, threshold=0, boundary=False, print_time=False):
 
     Dependencies
     ------------
-    - numpy: 1.22.0
+    - NumPy: 1.22.0
     '''
 
     # Consider the periodic boundary condition
@@ -114,25 +114,25 @@ def defect_detect(n_origin, threshold=0, boundary=False, print_time=False):
 
 
 
-def sort_line_indices(coords):
+def sort_loop_indices(coords):
     '''
-    Sort the indices of a line based on their nearest neighbor order.
+    Sort the indices of a loop based on their nearest neighbor order.
 
     Parameters
     ----------
-    coords : array_like, N x M
+    coords : array_like, (N, M)
              Array containing the indices representing a line.
              N is the number of points, and M is the dimension (usually 2 or 3).
 
     Returns
     -------
-    output : numpy.ndarray, N x M
+    output : numpy.ndarray, (N, M)
              Array representing the sorted indices of the line based on nearest neighbor order.
              N is the number of points, and M is the dimension (usually 2 or 3).
 
     Dependencies
     ------------
-    - numpy: 1.22.0
+    - NumPy: 1.22.0
     - nearest_neighbor_order(): Function for determining nearest neighbor order in the same module.
     '''
 
@@ -145,7 +145,7 @@ def nearest_neighbor_order(points):
 
     Parameters
     ----------
-    points : array_like, N x M
+    points : array_like, (N, M)
              Array containing the coordinates of the points.
              N is the number of points, and M is the dimension (usually 2 or 3).
 
@@ -156,8 +156,8 @@ def nearest_neighbor_order(points):
 
     Dependencies
     ------------
-    - numpy: 1.22.0
-    - scipy: 1.7.3
+    - NumPy: 1.22.0
+    - SciPy: 1.7.3
     '''
     from scipy.spatial.distance import cdist
 

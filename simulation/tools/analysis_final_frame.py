@@ -10,18 +10,12 @@ import matplotlib.pyplot as plt
 
 import h5py
 
-'''
-import sys
-sys.path
-sys.path.append(r'E:\Program\GitHub\3D-active-nematics\simulation')
-sys.path
-'''
 from Nematics3D.field import calc_lp_S, calc_lp_n, exp_decay
 from Nematics3D.elastic import get_deform_Q
 from Nematics3D.disclination import defect_detect, ordered_bulk_size
 
-Path('../figures/S_lp').mkdir(exist_ok=True, parents=True)
-Path('../figures/n_lp').mkdir(exist_ok=True, parents=True)
+Path('../analysis/figures/S_lp').mkdir(exist_ok=True, parents=True)
+Path('../analysis/figures/n_lp').mkdir(exist_ok=True, parents=True)
 
 DENSITY     = 0.7
 TIME_STEP   = 0.001
@@ -49,6 +43,9 @@ def main(
         
     final_path  = address + f"/analysis/final/endframe{end_frame}_Nout{N_out}/"
     Path( final_path ).mkdir(exist_ok = True, parents=True)
+
+    main_path = f'../analysis/final/{stiffness}_{activity}_{name}_endframe{end_frame}_Nout{N_out}/'
+    Path( main_path ).mkdir(exist_ok = True, parents=True)
 
     files 	= glob.glob(coarse_path+'/FFT/*.h5py')
     frames 	= np.array([int(re.findall(r'\d+', file)[-2]) for file in files])
@@ -184,6 +181,9 @@ def main(
         }
     
     with open(final_path+"/result.json", "w") as f:
+        json.dump(result, f, indent=4)
+
+    with open(main_path+"/result.json", "w") as f:
         json.dump(result, f, indent=4)
         
     with h5py.File(final_path+'/data.h5py', 'w') as fw:

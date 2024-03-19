@@ -1,14 +1,43 @@
+"""
+Simulation Script of 3D active nematics on LAMMPS
+Arthor: Yingyou Ma, Physics @ Brandeis, 2024, March
+
+This script automates the setup and execution of 3D active nematics simulations on LAMMPS with varying parameters.
+It creates simulation directories, makes the initial configuration, generates input files, and submits jobs to a cluster using SLURM.
+The simulations are designed with 3D active semi-flexible filaments.
+
+Dependencies:
+- LAMMPS (with our active code embedded)
+- Python 3.x
+- NumPy: 1.22.0
+- Pandas
+
+Instructions:
+1. Ensure LAMMPS is installed with active code.
+2. Adjust constants and path as needed. The path of each simulation is defined in pathname.py.
+3. Run the script to start LAMMPS simulations.
+
+Note: Make sure to customize the script for your specific simulation setup.
+"""
+
+# Built-in packages
 from pathlib import Path
 from subprocess import call, check_output
 from io import StringIO
 import os
+import glob
+import re
 
+# External packages
 import pandas as pd
 import numpy as np
 
+# Custom packages
+from pathname import get_mainpath
+
 # Directory
 ROOT = Path(__file__).resolve().parent
-CREATE_POLY_PATH = ROOT / "tools/create_poly.py"
+CREATE_POLY_PATH = ROOT / "tools/create_poly.py" # Path to the create_poly.py script, which generates the initial condition.
 
 # Constants of filaments
 WIDTH               = 200       # Box width
@@ -20,10 +49,10 @@ BOND_LENGTH         = 0.5       # Equilibrium length of bond
 # Constants of simulation
 ARCHIVE_INTV_RAW    = 800_000   # Raw interval of storing the restart files. The real interval might be slightly changed
 DUMP_BASE           = 200       # Set the dumping intervals as multipole of DUMP_BASE
-TIME_STEP           = 0.001
+TIME_STEP           = 0.001     # Timestep for the simulation
 
 
-# Loading templates
+# Loading templates for LAMMPS and SLURM
 with open("templates/lammps.template", "r") as f:
     lammps_template = f.read()
 
@@ -40,7 +69,7 @@ check_table = pd.read_csv(StringIO(check_out))
 print(check_table)
 
 
-# Read the parameters for simulations
+# Read the parameters for simulations from parameters.csv
 parameters = np.array(pd.read_csv("parameters.csv"))
 
 # The directory's name of upcoming simulations
@@ -71,7 +100,8 @@ def main(parameter, name):
         archive_intv = max_step
 
     job_name = f"Nematics3D_k{stiffness}_a{activity}_n{name}"
-    path = ROOT / f"data/density_{DENSITY:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}"
+    mainpath = get_mainpath(DENSITY, stiffness, activity, name)
+    path = ROOT / mainpath
 
     print(f"Checking job {job_name}")
 
@@ -83,12 +113,24 @@ def main(parameter, name):
     os.chdir(path)
 
     # check if the simulation has finished
+    # Firstly, check if the compeletion flag is created
     if os.path.isfile( path / 'end.txt' ):
         with open(path / 'end.txt', 'r') as f:
             end = float(f.readline().strip())
         if end >= max_time:
             print('The simulation has finished')
             return 0
+    
+    # Next, check the dump directory
+    # If the simulation time of the latest dump file is longer than set, create the completetion flag
+    dump_files = glob.glob('dump/*data*')
+    frames = np.array([int(re.findall(r'\d+', file)[-1]) for file in dump_files])
+    dump_final = np.sort(frames)[-1]
+    if dump_final >= max_time:
+        with open('end.txt', 'w') as f:
+            f.write(f'{dump_final*TIME_STEP}')
+        print('The simulation has finished')
+        return 0
 
     # Check if it's a new simulation
     save_version = 1
