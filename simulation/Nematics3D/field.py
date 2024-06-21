@@ -286,3 +286,97 @@ def calc_lp_n(n, max_init, width=200, skip_init=25, iterate=2, skip_ratio=1, max
                                           )
 
     return popt, r, corr, skip, perr
+
+# ---------------------------------------------------------------------------------
+# Visualize the diretors and defects (or the low S region) with given n and S field
+# ---------------------------------------------------------------------------------
+def visualize_nematics_field(n, S,
+                             plotn=True, plotS=True, plotdefects=False,
+                             space_index_ratio=1, sub_space=1, interval_n=(1,1,1), origin=(0,0,0),
+                             distance=(1.2,1.2,1.2),
+                             S_threshold=0.45, S_opacity=1, 
+                             S_plot_params={}, S_colorbar_params={}, S_colorbar_range=(0,1),
+                             new_figure=True, bgcolor=(0,0,0), if_axes=False):
+    
+    #! check distance
+
+    from mayavi import mlab
+
+    interval_n  = np.array(interval_n)
+    N           = np.array(np.shape(n)[:3])
+    if len(np.shape([space_index_ratio])) == 1:
+        space_index_ratio = (space_index_ratio, space_index_ratio, space_index_ratio)
+    
+
+    # the basic grid for the plotting
+    Nx, Ny, Nz = N    # the dimension of grid 
+    x = np.linspace(0, Nx*space_index_ratio[0], Nx)
+    y = np.linspace(0, Nx*space_index_ratio[1], Ny)
+    z = np.linspace(0, Nx*space_index_ratio[2], Nz)
+
+    # create a new figure with the given background if needed
+    if new_figure == True:
+        mlab.figure(bgcolor=bgcolor)
+
+    if len(np.shape([sub_space])) == 1:
+        indexx = np.arange( int(Nx/2 - Nx/2/sub_space), int(Nx/2 + Nx/2/sub_space) )
+        indexy = np.arange( int(Ny/2 - Ny/2/sub_space), int(Ny/2 + Ny/2/sub_space) )
+        indexz = np.arange( int(Nz/2 - Nz/2/sub_space), int(Nz/2 + Nz/2/sub_space) )
+    else:
+        indexx = np.arange( sub_space[0][0], sub_space[0][-1]+1 )
+        indexy = np.arange( sub_space[1][0], sub_space[1][-1]+1 )
+        indexz = np.arange( sub_space[2][0], sub_space[2][-1]+1 )
+
+    if plotS == True:
+
+        inx, iny, inz = np.meshgrid(indexx, indexy, indexz, indexing='ij')
+        ind = (inx, iny, inz)
+
+        if np.min(S[ind])>=S_threshold or np.max(S[ind])<=S_threshold:
+
+            print(f'the range of S is ({np.min(S[ind])}, {np.max(S[ind])})')
+            print('the threshold of contour plot of S is out of range')
+
+        else:
+
+            X, Y, Z = np.meshgrid(x,y,z, indexing='ij')
+            X = X[ind]*distance[0] + origin[0]
+            Y = Y[ind]*distance[1] + origin[1]
+            Z = Z[ind]*distance[2] + origin[2]
+
+            S_plot_color = S_plot_params.get('color')
+            mlab.contour3d(X, Y, Z, S[ind], contours=[S_threshold], opacity=S_opacity, **S_plot_params)
+            if S_plot_color == None:
+                S_colorbar_label_fmt = S_colorbar_params.get('label_fmt', '%.2f')
+                S_colorbar_nb_labels = S_colorbar_params.get('nb_labels', 5)
+                S_colorbar_orientation = S_colorbar_params.get('orientation', 'vertical')
+                lut_manager = mlab.colorbar(label_fmt=S_colorbar_label_fmt, 
+                                            nb_labels=S_colorbar_nb_labels, 
+                                            orientation=S_colorbar_orientation,
+                                            **S_colorbar_params)
+                lut_manager.data_range=(S_colorbar_range)
+            else:
+                print('The color of S is set. So there is no colorbar for S.')
+
+    if if_axes == True:
+        mlab.axes()
+
+
+
+    if len(np.shape([sub_space])) == 1:
+        indexx = np.arange( int(Nx/2 - Nx/2/sub_space), int(Nx/2 + Nx/2/sub_space), interval_n[0] )
+        indexy = np.arange( int(Ny/2 - Ny/2/sub_space), int(Ny/2 + Ny/2/sub_space), interval_n[1] )
+        indexz = np.arange( int(Nz/2 - Nz/2/sub_space), int(Nz/2 + Nz/2/sub_space), interval_n[2] )
+    else:
+        indexx = np.arange( sub_space[0][0], sub_space[0][-1]+1, interval_n[0] )
+        indexy = np.arange( sub_space[1][0], sub_space[1][-1]+1, interval_n[1] )
+        indexz = np.arange( sub_space[2][0], sub_space[2][-1]+1, interval_n[2] )
+    inx, iny, inz = np.meshgrid(indexx, indexy, indexz, indexing='ij')
+    ind = (inx, iny, inz)
+
+
+
+
+
+
+
