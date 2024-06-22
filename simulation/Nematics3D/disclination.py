@@ -6,7 +6,7 @@
 import numpy as np
 import time
 
-def defect_detect(n_origin, threshold=0, boundary=False, print_time=False):
+def defect_detect(n_origin, threshold=0, boundary_periodic=False, print_time=False):
     '''
     Detect defects in a 3D director field.
     For each small loop formed by four neighoring grid points,
@@ -24,9 +24,9 @@ def defect_detect(n_origin, threshold=0, boundary=False, print_time=False):
                 the inner product between the beginning and end director is smaller than the threshold.
                 Default is 0.
 
-    boundary : bool, optional
-               Flag to indicate whether to consider periodic boundaries. 
-               Default is False.
+    boundary_periodic : bool, optional
+                        Flag to indicate whether to consider periodic boundaries. 
+                        Default is False.
 
     print_time : bool, optional
                  Flag to print the time taken for each direction. 
@@ -44,7 +44,7 @@ def defect_detect(n_origin, threshold=0, boundary=False, print_time=False):
     '''
 
     # Consider the periodic boundary condition
-    if not boundary:
+    if not boundary_periodic:
         n = n_origin
     else:
         N, M, L = np.shape(n_origin)[:-1]
@@ -104,7 +104,7 @@ def defect_detect(n_origin, threshold=0, boundary=False, print_time=False):
     now = time.time()
 
     # Wrap with the periodic boundary condition
-    if boundary:
+    if boundary_periodic:
         defect_indices[:,0] = defect_indices[:,0] % N
         defect_indices[:,1] = defect_indices[:,1] % M
         defect_indices[:,2] = defect_indices[:,2] % L
