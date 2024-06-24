@@ -509,6 +509,8 @@ def visualize_nematics_field(n=[0], S=[0],
     """
 
     # examine the input data
+    n = np.array(n)
+    S = np.array(S)
     if S.size==1 and plotS==True:
         raise NameError("No data of S input to plot contour plot of S.")
     if n.size==1 and (plotn==True or plotdefects==True):
