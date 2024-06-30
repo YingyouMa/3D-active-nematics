@@ -287,9 +287,9 @@ def calc_lp_n(n, max_init, width=200, skip_init=25, iterate=2, skip_ratio=1, max
 
     return popt, r, corr, skip, perr
 
-#############################################################################
+#----------------------------------------------------------------------------
 # The default color function for the orientations of directors in 3D nematics
-#############################################################################
+#----------------------------------------------------------------------------
 
 def n_color_func_default(n):
 
@@ -306,18 +306,22 @@ def n_color_func_default(n):
 def visualize_nematics_field(n=[0], S=[0],
                              plotn=True, plotS=True, plotdefects=False,
                              space_index_ratio=1, sub_space=1, origin=(0,0,0), expand_ratio=1,
-                             n_opacity=1, n_interval=(1,1,1), n_shape='cylinder', n_width=2,
+                             n_opacity=1, n_interval=(1,1,1), n_shape='cylinder', n_width=2, n_plane_index=[],
                              n_color_func=n_color_func_default, n_length_ratio_to_dist=0.8,
                              n_if_colorbar=True, n_colorbar_params={}, n_colorbar_range='default',
                              S_threshold=0.45, S_opacity=1, S_plot_params={},
                              S_if_colorbar=True, S_colorbar_params={}, S_colorbar_range=(0,1),
                              defect_opacity=0.8, defect_size_ratio_to_dist=2,
                              boundary_periodic=False, defect_threshold=0, defect_print_time=False,
-                             new_figure=True, bgcolor=(0,0,0), if_axes=False
+                             new_figure=True, bgcolor=(1,1,1), fgcolor=(0,0,0), if_axes=False
                              ):
 
     #! float n_interval with interpolation
-    #! select n plane
+    #! different styles for different planes
+    #! input defect indices
+    #! plotdefects smooth
+    #! axes without number
+    #! with class
 
     """
     Visualize a 3D nematics field using Mayavi. 
@@ -401,8 +405,7 @@ def visualize_nematics_field(n=[0], S=[0],
                    If it is an array, it specifies RGB color for all directors.
                    For example, if n_color_func=(1,0,0), all directors will be red.
                    Default is n_color_func_default, a function I personally used to distinguish directors with different orientation.
-                   Warning: the 2D real projection space could NOT be embedded into Euclidean space, so there is NO one-to-one map from director's orientation to RGB color.
-                   This suggests that two directors with the SAME color could have DIFFERENT orientation, 
+                   Warning: Two directors with the SAME color could have DIFFERENT orientation, 
                    while two directors with different color always have different orientations.
                         
     n_length_ratio_to_dist : float, optional
@@ -484,9 +487,15 @@ def visualize_nematics_field(n=[0], S=[0],
                  If True, create a new figure for the plot. 
                  Default is True.
 
-    bgcolor : tuple of float, optional
-              Background color of the plot IN RGB color.
-              Default is (0, 0, 0), black.
+    bgcolor : array of three floats, optional
+              Background color of the plot in RGB.
+              Default is (0, 0, 0), white.
+
+    fgcolor : array of three floats, optional
+              Foreground color of the plot in RBG.
+              It is the color of all text annotation labels (axes, orientation axes, scalar bar labels). 
+              It should be sufficiently far from bgcolor to see the annotation texts.
+              Default is (0,0,0), black
 
     if_axes : bool, optional
               If True, display axes in the plot in the unit of real space. 
@@ -543,10 +552,11 @@ def visualize_nematics_field(n=[0], S=[0],
     x = np.linspace(0, Nx*space_index_ratio[0]-1, Nx)
     y = np.linspace(0, Ny*space_index_ratio[1]-1, Ny)
     z = np.linspace(0, Nz*space_index_ratio[2]-1, Nz)
+    X, Y, Z = np.meshgrid(x,y,z, indexing='ij')
 
     # create a new figure with the given background if needed
     if new_figure:
-        mlab.figure(bgcolor=bgcolor)
+        mlab.figure(bgcolor=bgcolor, fgcolor=fgcolor)
 
     # select the sub box to be plotted
     if len(np.shape([sub_space])) == 1:
@@ -604,7 +614,7 @@ def visualize_nematics_field(n=[0], S=[0],
         # make plot
         mlab.points3d(
             defect_indices[:,0], defect_indices[:,1], defect_indices[:,2],
-            scale_factor=defect_size, opacity=defect_opacity
+            scale_factor=defect_size, opacity=defect_opacity, color=(0,0,0)
             )
 
     # plot contours of S
@@ -618,16 +628,16 @@ def visualize_nematics_field(n=[0], S=[0],
 
         else:
             # the grid in real space to plot S
-            X, Y, Z = np.meshgrid(x,y,z, indexing='ij')
-            X = X[ind]*expand_ratio[0] + origin[0]
-            Y = Y[ind]*expand_ratio[1] + origin[1]
-            Z = Z[ind]*expand_ratio[2] + origin[2]
+            cord1 = X[ind]*expand_ratio[0] + origin[0]
+            cord2 = Y[ind]*expand_ratio[1] + origin[1]
+            cord3 = Z[ind]*expand_ratio[2] + origin[2]
 
             # check if the color of contours is set
             S_plot_color = S_plot_params.get('color')
 
             # make plot
-            S_region = mlab.contour3d(X, Y, Z, S[ind], contours=[S_threshold], opacity=S_opacity, **S_plot_params)
+            S_region = mlab.contour3d(cord1, cord2, cord3, S[ind], 
+                                      contours=[S_threshold], opacity=S_opacity, **S_plot_params)
             # make colorbar of S
             if S_plot_color == None:
                 if S_if_colorbar:
@@ -649,34 +659,27 @@ def visualize_nematics_field(n=[0], S=[0],
     # plot directors
     if plotn:
 
-        # the grid to plot n in real space is selected by n_interval
-        indexx = indexx[::n_interval[0]]
-        indexy = indexy[::n_interval[1]]
-        indexz = indexz[::n_interval[2]]
+        # the axes to plot n in real space is selected by n_interval
+        indexx_n = indexx[::n_interval[0]]
+        indexy_n = indexy[::n_interval[1]]
+        indexz_n = indexz[::n_interval[2]]
+        indexall = (indexx, indexy, indexz)
 
-        inx, iny, inz = np.meshgrid(indexx, indexy, indexz, indexing='ij')
+        inx, iny, inz = np.meshgrid(indexx_n, indexy_n, indexz_n, indexing='ij')
         ind = (inx, iny, inz)
 
-        X, Y, Z = np.meshgrid(x,y,z, indexing='ij')
-
         # set the length of directors' glyph
-        distx = (x[indexx[1]] - x[indexx[0]]) * expand_ratio[0]
-        disty = (y[indexy[1]] - y[indexy[0]]) * expand_ratio[1]
-        distz = (z[indexz[1]] - z[indexz[0]]) * expand_ratio[2]
+        distx = (x[indexx_n[1]] - x[indexx_n[0]]) * expand_ratio[0]
+        disty = (y[indexy_n[1]] - y[indexy_n[0]]) * expand_ratio[1]
+        distz = (z[indexz_n[1]] - z[indexz_n[0]]) * expand_ratio[2]
         dist = [distx, disty, distz]
         n_length = np.min(dist) * n_length_ratio_to_dist
         print(f'\nThe length of directors\' glyph: {n_length}')
 
-        # move the location of glyph so that the middle points of all glyphs form lattice
-        # this comes from the fact and directors are lines without directions
-        cord1 = (X[ind])*expand_ratio[0] - n[ind][..., 0]*n_length/2 + origin[0]
-        cord2 = (Y[ind])*expand_ratio[1] - n[ind][..., 1]*n_length/2 + origin[1]
-        cord3 = (Z[ind])*expand_ratio[2] - n[ind][..., 2]*n_length/2 + origin[2]
-
         # examine if directors are colored by function or uniform color
         try:
             len(n_color_func)
-            scalars = cord1
+            scalars = X[ind]*0
             n_color_scalars = False
             n_color = n_color_func
         except:
@@ -684,10 +687,62 @@ def visualize_nematics_field(n=[0], S=[0],
             n_color_scalars = True
             n_color = (1,1,1)
 
+        # if the planes of n are not set, use the default planes selected by n_interval
+        if np.size(n_plane_index) == 0:
+            
+            # move the location of glyph so that the middle points of all glyphs form lattice
+            # this comes from the fact and directors are lines without directions
+            cord1 = (X[ind])*expand_ratio[0] - n[ind][..., 0]*n_length/2 + origin[0]
+            cord2 = (Y[ind])*expand_ratio[1] - n[ind][..., 1]*n_length/2 + origin[1]
+            cord3 = (Z[ind])*expand_ratio[2] - n[ind][..., 2]*n_length/2 + origin[2]
+            print(np.shape(cord1))
+
+            nx = n[ind][..., 0]
+            ny = n[ind][..., 1]
+            nz = n[ind][..., 2]
+            
+        else:
+            cord1 = []
+            cord2 = []
+            cord3 = []
+            nx = []
+            ny = []
+            nz = []
+            scalars = []
+            for i, planes in enumerate(n_plane_index):
+                indexall_n = [indexx_n, indexy_n, indexz_n]
+                indexall_n[i] = indexall[i][planes]
+
+                inx, iny, inz = np.meshgrid(indexall_n[0], indexall_n[1], indexall_n[2], indexing='ij')
+                ind = (inx, iny, inz)
+
+                cord1_here = (X[ind])*expand_ratio[0] - n[ind][..., 0]*n_length/2 + origin[0]
+                cord2_here = (Y[ind])*expand_ratio[1] - n[ind][..., 1]*n_length/2 + origin[1]
+                cord3_here = (Z[ind])*expand_ratio[2] - n[ind][..., 2]*n_length/2 + origin[2]
+
+                nx_here = n[ind][..., 0]
+                ny_here = n[ind][..., 1]
+                nz_here = n[ind][..., 2]
+
+                if n_color_scalars == True:
+                    scalars_here = n_color_func(n[ind])
+                else:
+                    scalars_here = X[ind]*0
+
+                cord1 = np.concatenate( [ cord1, cord1_here.reshape(-1) ] )
+                cord2 = np.concatenate( [ cord2, cord2_here.reshape(-1) ] )
+                cord3 = np.concatenate( [ cord3, cord3_here.reshape(-1) ] )
+
+                nx = np.concatenate([nx, nx_here.reshape(-1)])
+                ny = np.concatenate([ny, ny_here.reshape(-1)])
+                nz = np.concatenate([nz, nz_here.reshape(-1)])
+
+                scalars = np.concatenate([scalars, scalars_here.reshape(-1)])
+
         # make plot
         vector = mlab.quiver3d(
                 cord1, cord2, cord3,
-                n[ind][..., 0],n[ind][..., 1],n[ind][..., 2],
+                nx, ny, nz,
                 mode=n_shape,
                 scalars=scalars,
                 scale_factor=n_length,
