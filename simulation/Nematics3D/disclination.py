@@ -8,6 +8,8 @@ import time
 
 def defect_detect(n_origin, threshold=0, boundary_periodic=False, print_time=False):
     '''
+    #! Introduce the format of 
+
     Detect defects in a 3D director field.
     For each small loop formed by four neighoring grid points,
     calculate the inner product between the beginning and end director.
@@ -34,9 +36,9 @@ def defect_detect(n_origin, threshold=0, boundary_periodic=False, print_time=Fal
 
     Returns
     -------
-    defect_indices : numpy.ndarray, P x 3
+    defect_indices : numpy.ndarray, defect_num x 3
                      Array containing the indices of detected defects.
-                     P is the number of defects found.
+                     According to our algorithm, for each defect's location, there must be one inteter and two half-integers.
 
     Dependencies
     ------------
@@ -776,6 +778,19 @@ def find_box(value, length_list):
     return (position, index)
 
 def defect_connected(defect_indices, N, print_time=False, print_per=1000):
+    """
+    Classify defects into different lines.
+
+    Parameters
+    ----------
+    defect_indices : numpy array, num_defects x 3
+                     Represents the locations of defects in the grid.
+                     For each location, there must be one integer (the index of plane) and two half-integers (the center of the loop on that plane)
+                     This is usually given by defect_detect()
+
+    
+    
+    """
 
     #! It only works with boundary=True in defect_detect() if defects cross walls
 
