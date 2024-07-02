@@ -293,10 +293,11 @@ def calc_lp_n(n, max_init, width=200, skip_init=25, iterate=2, skip_ratio=1, max
 
 def n_color_func_default(n):
 
-    phi = np.arccos(n[..., 0])
-    theta = np.arctan2(n[..., 2], n[..., 1])
+    theta = np.arccos(n[..., 0])
+    phi = np.arctan2(n[..., 2], n[..., 1])
 
-    scalars = (1-np.cos(2*phi))*(np.sin(theta%np.pi)+0.3)
+    scalars = (1-np.cos(2*theta))*(np.sin(phi%np.pi)+0.3)
+    # scalars = (1-np.cos(2*theta))*(np.sin(2*phi)+0.3)
 
     return scalars
 
@@ -324,6 +325,7 @@ def visualize_nematics_field(n=[0], S=[0],
     #! axes without number
     #! with class
     #! warning about boundary condition of classfication of defect lines
+    #!
 
     """
     Visualize a 3D nematics field using Mayavi. 
@@ -807,7 +809,9 @@ def visualize_nematics_field(n=[0], S=[0],
 
 
 
-def nematics_color_4d(n):
+def nematics_color_embed(n):
+
+    n = np.array(n)
 
     CMYK = np.zeros((*(np.shape(n)[:-1]),4))
     RGB = np.zeros((*(np.shape(n)[:-1]), 3))
@@ -825,7 +829,9 @@ def nematics_color_4d(n):
 
     return RGB
 
-def nematics_color_3d(n):
+def nematics_color_immerse(n):
+
+    n = np.array(n)
 
     RGB = np.zeros((*(np.shape(n)[:-1]), 3))
 
