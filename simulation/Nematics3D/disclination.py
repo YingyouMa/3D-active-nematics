@@ -8,7 +8,8 @@ import time
 
 def defect_detect(n_origin, threshold=0, boundary_periodic=False, print_time=False):
     '''
-    #! Introduce the format of 
+    #! Introduce the format of defect_indices
+    #! Change the radius if needed
 
     Detect defects in a 3D director field.
     For each small loop formed by four neighoring grid points,
@@ -778,6 +779,9 @@ def find_box(value, length_list):
     return (position, index)
 
 def defect_connected(defect_indices, N, print_time=False, print_per=1000):
+    
+    #! N_index for 3 different axes
+
     """
     Classify defects into different lines.
 
@@ -973,12 +977,16 @@ def sample_far(num):
     
     return result
 
-def visual_disclinations(lines, N, min_length=30, radius=0.5,
+def visual_disclinations(lines, N, N_index=1, min_length=30, radius=0.5,
                          window_cross=33, window_loop=21,
                          N_ratio_cross=1, N_ratio_loop=1.5,
-                         loop_color=(0,0,0), wrap=True, if_lines_added=False):
+                         loop_color=(0,0,0), cross_color=None,
+                         wrap=True, if_lines_added=False,
+                         new_figure=True, bgcolor=(1,1,1)):
+    #! plot3d to make lines as tubes
+    #! axes
+    #! N_index
     '''
-    #! Color_list
     Visualize disclination lines in 3D using Mayavi.
 
     Parameters
@@ -986,8 +994,9 @@ def visual_disclinations(lines, N, min_length=30, radius=0.5,
     lines : list of arrays
             List of disclination lines, where each line is represented as an array of coordinates.
 
-    N : int
-        Size of the cubic 3D grid in each dimension.
+    N_index : int or array of 3 ints
+              Size of the cubic 3D grid in each dimension.
+              If only one int x is input, it is interpreted as (x,x,x)
 
     min_length : int, optional
                  Minimum length of disclination loops to consider. 
@@ -1017,7 +1026,7 @@ def visual_disclinations(lines, N, min_length=30, radius=0.5,
                    Default is 1.5.
 
     loop_color : array like, shape (3,)  or None, optional
-                 The color of visualized loops.
+                 The color of visualized loops in RGB.
                  If None, the loops will follow same colormap with crosses.
                  Default is (0,0,0)
 
@@ -1028,6 +1037,14 @@ def visual_disclinations(lines, N, min_length=30, radius=0.5,
     if_lines_added : bool, optional
                      If the lines have already been added the mid-points
                      Default is False.
+
+    new_figure : bool, optional
+                 If True, create a new figure for the plot. 
+                 Default is True.
+
+    bgcolor : array of three floats, optional
+              Background color of the plot in RGB.
+              Default is (0, 0, 0), white.
 
     Returns
     -------
@@ -1047,6 +1064,11 @@ def visual_disclinations(lines, N, min_length=30, radius=0.5,
     '''
 
     from mayavi import mlab
+
+    '''
+    if len(np.shape([N_index])) == 1:
+        N_index = (N_index, N_index, N_index)
+    '''
 
     # Filter out short disclination lines
     lines = np.array(lines, dtype=object)
@@ -1071,43 +1093,52 @@ def visual_disclinations(lines, N, min_length=30, radius=0.5,
                                     N_out=int(N_ratio_loop*len(line)))
             loops.append(loop)
 
-    # Sort crosses by length for better visualization
-    crosses = np.array(crosses, dtype=object)
-    cross_length = [len(cross) for cross in crosses]
-    crosses = crosses[np.argsort(cross_length)[-1::-1]]
-
-    # Generate colormap
-    colormap = blue_red_in_white_bg()
-
-    # Generate colors for cross-type disclinations or all disclinations
-    if loop_color != None:
-        if len(crosses) > 0:
-            color_index = ( sample_far(len(crosses)) * 510 ).astype(int)
-    else:
-        color_index = ( sample_far(len(lines)) * 510 ).astype(int)
-    
-    
-    # Plotting
-    mlab.figure(bgcolor=(1,1,1)) 
-
     # wrap the discliantions with periodic boundary conditions
     if wrap == True:
         loops = np.array(loops, dtype=object)%N
         crosses = np.array(crosses, dtype=object)%N
 
-    for i,cross in enumerate(crosses):
-        mlab.points3d(*(cross.T), scale_factor=radius, color=tuple(colormap[color_index[i]])) 
+    # Generate a new figure with the given background color if needed
+    if new_figure==True:
+        mlab.figure(bgcolor=bgcolor) 
 
-    if loop_color != None:
-        for loop in loops:
-            mlab.points3d(*(loop.T), scale_factor=radius, color=loop_color)
-    else:
+    # Generate colormap
+    colormap = blue_red_in_white_bg()
+
+    if cross_color == None:
+        # Sort crosses by length for better visualization if the color is not set
+        crosses = np.array(crosses, dtype=object)
+        cross_length = [len(cross) for cross in crosses]
+        crosses = crosses[np.argsort(cross_length)[-1::-1]]
+    if loop_color == None:
+        loops = np.array(loops, dtype=object)
+        loop_length = [len(loop) for loop in loops]
+        loops = loops[np.argsort(loop_length)[-1::-1]]
+    if cross_color == None and loop_color == None:
+        color_index = ( sample_far(len(lines)) * 510 ).astype(int)
+        for i,cross in enumerate(crosses):
+            mlab.points3d(*(cross.T), scale_factor=radius, color=tuple(colormap[color_index[i]])) 
         for j, loop in enumerate(loops):
             mlab.points3d(*(loop.T), scale_factor=radius, color=tuple(colormap[color_index[len(crosses)+j]]))
-        
-
-
-
+    elif cross_color != None and loop_color == None:
+        color_index = ( sample_far(len(loops)) * 510 ).astype(int)
+        for i,cross in enumerate(crosses):
+            mlab.points3d(*(cross.T), scale_factor=radius, color=cross_color) 
+        for j, loop in enumerate(loops):
+            mlab.points3d(*(loop.T), scale_factor=radius, color=tuple(colormap[color_index[j]]))
+    elif cross_color == None and loop_color != None:
+        color_index = ( sample_far(len(crosses)) * 510 ).astype(int)
+        for i,cross in enumerate(crosses):
+            mlab.points3d(*(cross.T), scale_factor=radius, color=tuple(colormap[color_index[i]])) 
+            #mlab.plot3d(*(cross.T), tube_radius=radius, color=tuple(colormap[color_index[i]]))
+        for j, loop in enumerate(loops):
+            mlab.points3d(*(loop.T), scale_factor=radius, color=loop_color)
+    else:
+        for i,cross in enumerate(crosses):
+            mlab.points3d(*(cross.T), scale_factor=radius, color=cross_color) 
+            #mlab.plot3d(*(cross.T), tube_radius=radius, color=cross_color)
+        for j, loop in enumerate(loops):
+            mlab.points3d(*(loop.T), scale_factor=radius, color=loop_color)        
 
 def ordered_bulk_size(defect_indices, N, width, if_print=True):
     '''

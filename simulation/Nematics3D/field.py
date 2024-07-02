@@ -313,7 +313,8 @@ def visualize_nematics_field(n=[0], S=[0],
                              S_if_colorbar=True, S_colorbar_params={}, S_colorbar_range=(0,1),
                              defect_opacity=0.8, defect_size_ratio_to_dist=2,
                              boundary_periodic=False, defect_threshold=0, defect_print_time=False,
-                             new_figure=True, bgcolor=(1,1,1), fgcolor=(0,0,0), if_axes=False
+                             new_figure=True, bgcolor=(1,1,1), fgcolor=(0,0,0), if_axes=False,
+                             defect_smooth=False
                              ):
 
     #! float n_interval with interpolation
@@ -322,6 +323,7 @@ def visualize_nematics_field(n=[0], S=[0],
     #! plotdefects smooth
     #! axes without number
     #! with class
+    #! warning about boundary condition of classfication of defect lines
 
     """
     Visualize a 3D nematics field using Mayavi. 
@@ -547,7 +549,7 @@ def visualize_nematics_field(n=[0], S=[0],
         print('\nWarning: n_shape=cylinder, whose thickness can not be controlled by n_width.')
 
 
-    # the basic axes for the plotting in real space
+    # the basic axes for the plotting in real space of the entire box
     Nx, Ny, Nz = np.array(np.shape(n)[:3])    
     x = np.linspace(0, Nx*space_index_ratio[0]-1, Nx)
     y = np.linspace(0, Ny*space_index_ratio[1]-1, Ny)
@@ -581,7 +583,7 @@ def visualize_nematics_field(n=[0], S=[0],
             boundary_periodic = False
 
         # find defects
-        from Nematics3D.disclination import defect_detect
+        from .disclination import defect_detect
         print('\nDetecting defects')
         defect_indices = defect_detect(n[ind], boundary_periodic=boundary_periodic, threshold=defect_threshold,
                                        print_time=defect_print_time)
@@ -611,11 +613,28 @@ def visualize_nematics_field(n=[0], S=[0],
         defect_size = np.min(dist) * defect_size_ratio_to_dist
         print(f'\nSize of defect points: {defect_size}')
 
-        # make plot
-        mlab.points3d(
-            defect_indices[:,0], defect_indices[:,1], defect_indices[:,2],
-            scale_factor=defect_size, opacity=defect_opacity, color=(0,0,0)
-            )
+        # make plot of defect points if there is no need to plot the smoothened lines
+        if defect_smooth == False:
+            mlab.points3d(
+                defect_indices[:,0], defect_indices[:,1], defect_indices[:,2],
+                scale_factor=defect_size, opacity=defect_opacity, color=(0,0,0)
+                )
+        else:
+
+            from .disclination import defect_connected, visual_disclinations
+
+            lines = defect_connected(defect_indices, Nx)
+            '''
+            for line in lines:
+                mlab.plot3d(*(line.T), color=(0,0,0))
+            '''
+            visual_disclinations(lines, Nx, new_figure=False, 
+                                 min_length=11, window_cross=9, window_loop=9,
+                                 N_ratio_cross=3, N_ratio_loop=3,
+                                 loop_color=(0,0,0), cross_color=(0,0,0))
+
+
+
 
     # plot contours of S
     if plotS:
@@ -695,7 +714,6 @@ def visualize_nematics_field(n=[0], S=[0],
             cord1 = (X[ind])*expand_ratio[0] - n[ind][..., 0]*n_length/2 + origin[0]
             cord2 = (Y[ind])*expand_ratio[1] - n[ind][..., 1]*n_length/2 + origin[1]
             cord3 = (Z[ind])*expand_ratio[2] - n[ind][..., 2]*n_length/2 + origin[2]
-            print(np.shape(cord1))
 
             nx = n[ind][..., 0]
             ny = n[ind][..., 1]
@@ -784,6 +802,54 @@ def visualize_nematics_field(n=[0], S=[0],
     # add axes if neede
     if if_axes:
         mlab.axes()
+
+    return n[ind]
+
+
+
+def nematics_color_4d(n):
+
+    CMYK = np.zeros((*(np.shape(n)[:-1]),4))
+    RGB = np.zeros((*(np.shape(n)[:-1]), 3))
+
+    CMYK[..., 0] = n[..., 0] * n[..., 1]
+    CMYK[..., 1] = n[..., 0] * n[..., 2]
+    CMYK[..., 2] = n[..., 1]**2 - n[..., 2]**2
+    CMYK[..., 3] = n[..., 1] * n[..., 2]
+
+    CMYK = CMYK/2 + 0.5
+
+    RGB[..., 0] = ( 1-CMYK[..., 0] ) * ( 1-CMYK[..., 3] )
+    RGB[..., 1] = ( 1-CMYK[..., 1] ) * ( 1-CMYK[..., 3] )
+    RGB[..., 2] = ( 1-CMYK[..., 2] ) * ( 1-CMYK[..., 3] )
+
+    return RGB
+
+def nematics_color_3d(n):
+
+    RGB = np.zeros((*(np.shape(n)[:-1]), 3))
+
+    x = n[..., 0]
+    y = n[..., 1]
+    z = n[..., 2]
+
+    x2 = x**2
+    y2 = y**2
+    z2 = z**2
+
+    RGB[..., 0] = (2*x2-y2-z2) + 2*y*z*(y2-z2) + z*x*(x2-z2) + x*y*(y2-x2)
+    RGB[..., 1] = (y2-z2) + z*x*(z2-x2) + x*y*(y2-x2)
+    RGB[..., 2] = (x+y+z) * ( (x+y+z)**3 + 4*(y-x)*(z-y)*(x-z))
+
+    RGB[..., 0] = RGB[..., 0] / 2
+    RGB[..., 1] = RGB[..., 1] * np.sqrt(3) / 2
+    RGB[..., 2] = RGB[..., 2] /8
+
+    RGB[..., 0] = RGB[..., 0] / 1.87 + 0.42
+    RGB[..., 1] = RGB[..., 1] / 2 + 0.5
+    RGB[..., 2] = RGB[..., 2] / 1.3 + 0.13
+
+    return RGB
 
 
 
