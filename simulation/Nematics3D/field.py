@@ -552,7 +552,10 @@ def visualize_nematics_field(n=[0], S=[0],
 
 
     # the basic axes for the plotting in real space of the entire box
-    Nx, Ny, Nz = np.array(np.shape(n)[:3])    
+    if np.size(n) > 1:
+        Nx, Ny, Nz = np.array(np.shape(n)[:3]) 
+    else:
+        Nx, Ny, Nz = np.array(np.shape(S)[:3])    
     x = np.linspace(0, Nx*space_index_ratio[0]-1, Nx)
     y = np.linspace(0, Ny*space_index_ratio[1]-1, Ny)
     z = np.linspace(0, Nz*space_index_ratio[2]-1, Nz)
@@ -804,9 +807,6 @@ def visualize_nematics_field(n=[0], S=[0],
     # add axes if neede
     if if_axes:
         mlab.axes()
-
-    return n[ind]
-
 
 
 def nematics_color_embed(n):
