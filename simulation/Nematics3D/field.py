@@ -87,10 +87,43 @@ def diagonalizeQ(qtensor):
 
     return S, n
 
-# ----------------------------------------------------------------------
-# With the indices of a pair of opposite vertices of sub-orthogonal-box,
-# select n and S within that subbox
-# ----------------------------------------------------------------------
+def interpolateQ(n, add_point, S=[0]):
+
+    from scipy.interpolate import interpn
+
+    if len(np.shape([add_point])) == 1:
+        add_point = np.array( [add_point]*3 )
+
+    init_shape = np.array(np.shape(n)[:3])
+    result_shape = (init_shape-1) * (add_point+1) + 1
+
+    result_points = np.array(list(product(
+        np.linspace(0, init_shape[0]-1, result_shape[0]),
+        np.linspace(0, init_shape[1]-1, result_shape[1]),
+        np.linspace(0, init_shape[2]-1, result_shape[2]),
+        )))
+    result_points = result_points.reshape((*result_shape),3)
+
+    init_points = (
+        np.arange(init_shape[0]),
+        np.arange(init_shape[1]),
+        np.arange(init_shape[2])
+        )
+
+    init_Q = np.einsum('abci, abcj -> abcij', n, n)
+    init_Q = init_Q - np.diag((1,1,1))/3
+    if np.size(S) != 1:
+        init_Q = np.einsum('abc, abcij -> abcij', S, init_Q)
+
+    result_Q = np.zeros((*result_shape, 5))
+    result_Q[..., 0] = interpn(init_points, init_Q[..., 0, 0], result_points)
+    result_Q[..., 1] = interpn(init_points, init_Q[..., 0, 1], result_points)
+    result_Q[..., 2] = interpn(init_points, init_Q[..., 0, 2], result_points)
+    result_Q[..., 3] = interpn(init_points, init_Q[..., 1, 1], result_points)
+    result_Q[..., 4] = interpn(init_points, init_Q[..., 1, 2], result_points)
+
+    return result_Q
+
 
 def subbox_slices(min_vertex, max_vertex, 
                   margin_ratio=0, min_limit=[-np.inf, -np.inf, -np.inf], max_limit=[np.inf, np.inf, np.inf],
