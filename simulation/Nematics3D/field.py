@@ -14,6 +14,7 @@ import numpy as np
 # --------------------------------------------------------
 
 def diagonalizeQ(qtensor):
+    #! biaxial as option
     """
     Diagonalization of Q tensor in 3D nematics.
     Currently it onply provides the uniaxial information.
@@ -91,26 +92,95 @@ def diagonalizeQ(qtensor):
 # select n and S within that subbox
 # ----------------------------------------------------------------------
 
-def select_subbox(subbox_indices, box_grid_size, 
-                  margin_ratio=0):
+def subbox_slices(min_vertex, max_vertex, 
+                  margin_ratio=0, min_limit=[-np.inf, -np.inf, -np.inf], max_limit=[np.inf, np.inf, np.inf],
+                  box_grid_size=np.inf ):
+    #! find which functions are using select_subbox()
+    '''
+    For a numpy array (N, M, L, ...) as values on 3D grid, generate the slice of a subbox, 
+    whose diagonal vertices (the minimum and maximum value in each dimension) are given.
+    For example, assuming there is an orthogonal grid (called data) with shape (30, 20, 15),
+    and we want to select the subbox where x in [10, 20], y in [6, 10], z in [4, 7],
 
-    subbox  = subbox_indices
-    N, M, L = box_grid_size
+    sl0, sl1, sl2, = subbox_slices([10, 5, 2], [20, 10, 7])
+    data[sl0, sl1, sl2] is what we need
+
+    This function also supports expand of the vertices to give a bigger subbox, which could be used in, for example, interpolation.
+    The periodic boundary condition is also considered.
+
+    Parameters
+    ----------
+
+    min_vertex : array of three positive ints,
+                 The minimum index index in each dimension, (xmin, ymin, zmin)
+
+    max_vertex : array of three positive ints,
+                 The maximum index index in each dimension, (xmax, ymax, zmax)
+
+    margin_ratio : float or array of three floats, optional
+                   The subbox is magnified by how many times from initial in each dimension.
+                   If only one float x is given, it is interprepted as (x,x,x)
+                   Default is 0, no expansion.
+
+    min_limit : array of three floats, optional
+                Ihe limit of minimum value in each dimension.
+                If the expanded subbox breaks the limit, it will stay at the limit.
+                For example, if max_limit = [0, 10, 20], and the min_vertex of the expanded subbox is [-5, 5, 25],
+                the min_vertex will turn to be [0, 10, 20].
+                Default is [-np.inf, -np.inf, -np.inf], no limit in minimum
+
+    max_limit : array of three floats, optional
+                Ihe limit of aximum value in each dimension.
+                If the expanded subbox breaks the limit, it will stay at the limit.
+                For example, if max_limit = [50, 75, 100], and the max_vertex of the expanded subbox is [40, 90, 90],
+                the min_vertex will turn to be [40, 75, 90].
+                Default is [-np.inf, -np.inf, -np.inf], no limit in maximum
+
+    box_grid_size : positive int or array of three positive ints
+                    The maximum index in each dimension of the whole box.
+                    Used to cover periodic boundary.
+                    If there is no periodic boundary condition in a certain dimension, then set it to np.inf here.
+                    If only one float x is given, it is interprepted as (x,x,x).
+                    Default is np.inf, as no periodic boudnary condition in any dimension
+
+    Returns
+    -------
+
+    sl0 : the slice in the first dimension (x-axis)
+
+    sl1 : the slice in the second dimension (y-axis)      
+    
+    sl2 : the slice in the third dimension (z-axis) 
+
+    subbox : array of ints, (2,3)
+             np.array([[xmin, ymin, zmin], [xmax, ymax, zmax]]), where each value is derived after expansion         
+    '''
+
+    min_vertex = np.array(min_vertex)
+    max_vertex = np.array(max_vertex)
 
     if margin_ratio != 0:
-        xrange, yrange, zrange = subbox_indices[:,1] - subbox_indices[:,0]
+        if len(np.shape([margin_ratio])) == 1:
+            margin_ratio = np.array([margin_ratio]*3)
+        xrange, yrange, zrange = max_vertex - min_vertex
         margin = ( np.array([xrange, yrange, zrange]) * margin_ratio/2 ).astype(int)
-        subbox[:,0] -= margin
-        subbox[:,1] += margin
+        min_vertex = min_vertex - margin
+        max_vertex = max_vertex + margin
 
-    xmin, ymin, zmin = subbox[:,0]
-    xmax, ymax, zmax = subbox[:,1]
+    xmin, ymin, zmin = np.max( np.vstack( (min_vertex, min_limit) ) ,axis=0).astype(int)
+    xmax, ymax, zmax = np.min( np.vstack( (max_vertex, max_limit) ) ,axis=0).astype(int)
 
+    if len(np.shape([box_grid_size])) == 1:
+        N, M, L = np.array([box_grid_size]*3)
+    else:
+        N, M, L = box_grid_size
+
+    print(N,M,L)
     sl0 = np.array(range(xmin, xmax+1)).reshape(-1,1, 1)%N
     sl1 = np.array(range(ymin, ymax+1)).reshape(1,-1, 1)%M
     sl2 = np.array(range(zmin, zmax+1)).reshape(1,1,-1)%L
 
-    return sl0, sl1, sl2, subbox
+    return sl0, sl1, sl2, np.array([[xmin, ymin, zmin], [xmax, ymax, zmax]])
 
 
 # ----------------------------------------------------
@@ -141,7 +211,11 @@ def local_box_diagonalize(n_box):
 def interpolate_subbox(vertex_indices, axes_unit, loop_box, n, S, whole_box_grid_size,
                         margin_ratio=2, num_min=20, ratio=[1,1,1]):
     
-    #! Rewrite to be easily used in simple interpolation 
+    #! check which functions are using interpolate_subox
+    '''
+
+    
+    '''
 
     diagnal = vertex_indices[1] - vertex_indices[0]
     num_origin = np.einsum('i, ji -> j', diagnal, axes_unit)
@@ -312,7 +386,7 @@ def visualize_nematics_field(n=[0], S=[0],
                              n_if_colorbar=True, n_colorbar_params={}, n_colorbar_range='default',
                              S_threshold=0.45, S_opacity=1, S_plot_params={},
                              S_if_colorbar=True, S_colorbar_params={}, S_colorbar_range=(0,1),
-                             defect_opacity=0.8, defect_size_ratio_to_dist=2,
+                             defect_opacity=0.8, defect_size_ratio_to_dist=2, defect_color=(0,0,0),
                              boundary_periodic=False, defect_threshold=0, defect_print_time=False,
                              new_figure=True, bgcolor=(1,1,1), fgcolor=(0,0,0), if_axes=False,
                              defect_smooth=False
@@ -622,7 +696,7 @@ def visualize_nematics_field(n=[0], S=[0],
         if defect_smooth == False:
             mlab.points3d(
                 defect_indices[:,0], defect_indices[:,1], defect_indices[:,2],
-                scale_factor=defect_size, opacity=defect_opacity, color=(0,0,0)
+                scale_factor=defect_size, opacity=defect_opacity, color=defect_color
                 )
         else:
 
