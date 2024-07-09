@@ -102,7 +102,7 @@ def interpolateQ(n, add_point, S=[0]):
         np.linspace(0, init_shape[1]-1, result_shape[1]),
         np.linspace(0, init_shape[2]-1, result_shape[2]),
         )))
-    result_points = result_points.reshape((*result_shape),3)
+    result_points = result_points.reshape((*result_shape,3))
 
     init_points = (
         np.arange(init_shape[0]),

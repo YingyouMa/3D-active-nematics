@@ -950,13 +950,14 @@ def defect_connected(defect_indices, box_size, print_time=False, print_per=1000)
 
     # loop when there are still unclassfied defects
     index_line = -1 # representing the index of the new line
-    index = 0 # how many defects have been classfied
+    index = -1 # how many defects have been classfied
     while defect_left_num > 0:
         
         # to start to find a new discliantion line
         cross_wall = np.array([0,0,0]) # the array recording that how many time have the line crossed wach wall due to periodic boudnary condition
         index_here = 0 # representing the index of the next defect in the new line
         index_line += 1
+        index += 1
 
         # To see if there are still defects at the wall.
         # If so, start the new line at such defect.
@@ -974,7 +975,7 @@ def defect_connected(defect_indices, box_size, print_time=False, print_per=1000)
 
         defect_start = defect_box_here[defect_ordinal_next] # the defect that start a new line
         defect_sorted[index, :3] = defect_start[:3]
-        defect_sorted[index, 4] = index_line
+        defect_sorted[index, 3] = index_line
         defect_sorted[index, 4] = 0
 
         # Once start a line, try to find neighboring defects until there is no any
