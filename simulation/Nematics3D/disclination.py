@@ -193,7 +193,7 @@ def nearest_neighbor_order(points):
 
 
 
-def smoothen_line(line_coord, window_ratio=3, window_length=None, order=3, N_out=160, mode='interp'):
+def smoothen_line(line_coord, window_ratio=3, window_length=None, order=3, N_out_ratio=3, mode='interp'):
     '''
     Smoothen a line represented by coordinates using Savitzky-Golay filtering
     and cubic spline interpolation. Usually used for smoothening disclination lines.
@@ -217,9 +217,9 @@ def smoothen_line(line_coord, window_ratio=3, window_length=None, order=3, N_out
             Order of the Savitzky-Golay filter. 
             Default is 3.
 
-    N_out : int, optional
-            Number of points in the output smoothened line. 
-            Default is 160.
+    N_out : float, optional
+            Number of points in the output smoothened line compared to the original number of points (N). 
+            Default is 3.
 
     mode : str, optional
            Mode of extension for the Savitzky-Golay filter (usually 'interp' or 'wrap'). 
@@ -254,7 +254,7 @@ def smoothen_line(line_coord, window_ratio=3, window_length=None, order=3, N_out
     # Use cubic spline interpolation to obtain new coordinates
     from scipy.interpolate import splprep, splev
     tck = splprep(line_points.T, u=uspline, s=0)[0]
-    output = np.array(splev(np.linspace(0,1,N_out), tck)).T
+    output = np.array(splev(np.linspace(0,1,int(len(line_coord)*N_out_ratio)), tck)).T
 
     return output
 
