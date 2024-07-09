@@ -896,37 +896,16 @@ def defect_connected(defect_indices, box_size, print_time=False, print_per=1000)
     else:
         box_size = np.array(box_size)
     
-    index = 0
+    defect_indices = np.array(defect_indices)
     defect_num = len(defect_indices)
     defect_left_num = defect_num # the amount of unclassified defects. Initially it is the number of all defects
-    
-    lines = [] # the list containing different disclination lines
 
     # We start each disclination line at the wall, so that we firstly select the defects at the wall as the start point.
     # If the periodic boundary condition is considered, there might be no need to worry about it.
     # To the opposite, if the periodic boundary condition is NOT considered, the disclination line must start at the wall,
     # because here the cross line does NOT move back to the start point.
-    # If such line does not start at the wall, the line will end at the wall, and the rest of the line will turn to be another line.
-    # In other words, here the line will be splitted into two lines.
-
-    # For each defect, except the three coorinates, let's give it the fourth value indicating if it is at the wall
-    # Besides, for debugging, we store three other values:
-    # the index of defects through all the defects 
-    # the index of line that this defect belongs to, 
-    # the index of this defect of this line
-
-    defect_dict = {
-                   "index_defects": 3,
-                   "index_of_line": 4,
-                   "index_in_line": 5,
-                   "if_at_wall":    6
-                   }
-
-    defect_indices = np.hstack([defect_indices, np.zeros((defect_num,4))])
-    defect_indices[..., defect_dict["index_defects"]] = np.arange(defect_num)
-
-    defect_indices[..., defect_dict["index_of_line"]] = -1
-    defect_indices[..., defect_dict["index_in_line"]] = -1
+    # Let's elaborate it. Imagine a line crossing the wall. If we do NOT start at the wall but start in the middle, the line will end at the wall.
+    # The rest of the line will turn to be another line. In other words, here the line will be splitted into two lines.
 
     if_wall = (defect_indices[:,0]==0) | \
               (defect_indices[:,1]==0) | \
@@ -934,8 +913,22 @@ def defect_connected(defect_indices, box_size, print_time=False, print_per=1000)
               (defect_indices[:,0]==box_size[0]-1) | \
               (defect_indices[:,1]==box_size[1]-1) | \
               (defect_indices[:,2]==box_size[2]-1)
-    
-    defect_indices[if_wall, defect_dict["if_at_wall"]] = True 
+
+    # For each defect, except the three coorinates, let's give it some other properties for convenience:
+    # the index of defects through all the defects
+    # if it is at the wall 
+
+    # In the output, we will still have the coordinates of all defects (sorted by lines), but there will also be:
+    # the index of the line that this defect belongs to
+    # the index of the defect within the line
+
+    defect_indices = np.hstack([defect_indices, np.zeros((defect_num,2))])
+    defect_indices[..., -2] = np.arange(defect_num)
+    defect_indices[if_wall, -1] = True
+
+    defect_sorted = np.zeros((defect_num, 5))
+    defect_sorted[..., -2] = -1
+    defect_sorted[..., -1] = -1
 
     # to divide the defects into 8 subboxes to accelerate
     check0 = defect_indices[:,0] < int(box_size[0]/2)
@@ -957,32 +950,32 @@ def defect_connected(defect_indices, box_size, print_time=False, print_per=1000)
 
     # loop when there are still unclassfied defects
     index_line = -1 # representing the index of the new line
+    index = 0 # how many defects have been classfied
     while defect_left_num > 0:
         
         # to start to find a new discliantion line
-        loop_here = np.zeros( ( len(defect_indices),3 ) ) # the array containing the indices of the new disclination line
         cross_wall = np.array([0,0,0]) # the array recording that how many time have the line crossed wach wall due to periodic boudnary condition
-        index_here = 0 # representing the index of the following defect in the new line
+        index_here = 0 # representing the index of the next defect in the new line
         index_line += 1
 
         # To see if there are still defects at the wall.
         # If so, start the new line at such defect.
-        box_index = next((i for i, box in enumerate(defect_box) if np.sum(box[..., defect_dict["if_at_wall"]])>0), None)
+        box_index = next((i for i, box in enumerate(defect_box) if np.sum(box[..., -1])>0), None)
         
         # defect_box_here is the subbox containing the start defect
         # defect_ordinal_next is the index of the new found defect in the subbox
         if box_index != None:
             defect_box_here = defect_box[box_index]
-            defect_ordinal_next = np.argmax(defect_box_here[..., defect_dict["if_at_wall"]]>0)
+            defect_ordinal_next = np.argmax(defect_box_here[..., -1]>0)
         else:
             box_index = next((i for i, box in enumerate(defect_box) if len(box)>0), None) # select the box which still contains unclassfied defects
             defect_box_here = defect_box[box_index]
             defect_ordinal_next = 0
 
         defect_start = defect_box_here[defect_ordinal_next] # the defect that start a new line
-        loop_here[0] = defect_start[:3]
-        defect_indices[int(defect_start[defect_dict["index_defects"]]), defect_dict["index_of_line"]] = index_line
-        defect_indices[int(defect_start[defect_dict["index_defects"]]), defect_dict["index_in_line"]] = 0
+        defect_sorted[index, :3] = defect_start[:3]
+        defect_sorted[index, 4] = index_line
+        defect_sorted[index, 4] = 0
 
         # Once start a line, try to find neighboring defects until there is no any
         while True:
@@ -996,7 +989,7 @@ def defect_connected(defect_indices, box_size, print_time=False, print_per=1000)
             defect_box_here = 1*defect_box[box_index]
             
             # Array of the locations of the current defect and its ghost defects coming from periodic boudnary
-            # Initially there is no ghost defect
+            # Initially there is no ghost defect since we are searching within the subbox
             defect_group = np.array([defect_here_loc])
 
             if_find = False
@@ -1038,34 +1031,29 @@ def defect_connected(defect_indices, box_size, print_time=False, print_per=1000)
                     box_index, defect_ordinal_next = find_box(defect_ordinal_next, [len(term) for term in defect_box])
                 
             if if_find == True:
+                # If we find the next defect, store the data
                 defect_diff = defect_next_loc - defect_here_loc
                 cross_wall_here = np.trunc( defect_diff / (box_size-10) ) #! this 10
                 cross_wall = cross_wall - cross_wall_here
                 defect_next_loc = defect_next_loc + cross_wall * box_size
                 index_here += 1
                 index += 1
-                loop_here[index_here] = defect_next_loc
+                defect_sorted[index, :3] = defect_next_loc
+                defect_sorted[index, -2] = index_line
+                defect_sorted[index, -1] = index_here
                 defect_box_here = defect_box[box_index]
-                defect_next = defect_box_here[defect_ordinal_next]
-                defect_index_global = int(defect_next[defect_dict["index_defects"]])
-                defect_indices[defect_index_global, defect_dict["index_of_line"]] = index_line
-                defect_indices[defect_index_global, defect_dict["index_in_line"]] = index_here
                 if print_time == True:
                     if index % print_per == 0:
                         print(f'{index}/{defect_num} = {round(index/defect_num*100,2)}%, {round(time.time()-start_here,2)}s  ',
                             f'{round(time.time()-start,2)}s in total' )
                         start_here= time.time()
             else:
-                zero_loc = np.where(np.all([0,0,0] == loop_here, axis=1))[0]
-                if len(zero_loc) > 0:
-                    loop_here = loop_here[:zero_loc[0]]
-                lines.append(loop_here)
                 defect_left_num = 0
                 for term in defect_box:
                     defect_left_num += len(term)
                 break
     
-    return lines, defect_indices
+    return defect_sorted
 
 # ------------------------------------------
 # Add mid-points into the disclination lines
