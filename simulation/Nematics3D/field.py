@@ -422,7 +422,6 @@ def visualize_nematics_field(n=[0], S=[0],
                              defect_opacity=0.8, defect_size_ratio_to_dist=2, defect_color=(0,0,0),
                              boundary_periodic=False, defect_threshold=0, defect_print_time=False,
                              new_figure=True, bgcolor=(1,1,1), fgcolor=(0,0,0), if_axes=False,
-                             defect_smooth=False
                              ):
 
     #! float n_interval with interpolation
@@ -725,25 +724,11 @@ def visualize_nematics_field(n=[0], S=[0],
         defect_size = np.min(dist) * defect_size_ratio_to_dist
         print(f'\nSize of defect points: {defect_size}')
 
-        # make plot of defect points if there is no need to plot the smoothened lines
-        if defect_smooth == False:
-            mlab.points3d(
-                defect_indices[:,0], defect_indices[:,1], defect_indices[:,2],
-                scale_factor=defect_size, opacity=defect_opacity, color=defect_color
-                )
-        else:
-
-            from .disclination import defect_connected, visual_disclinations
-
-            lines = defect_connected(defect_indices, Nx)
-            '''
-            for line in lines:
-                mlab.plot3d(*(line.T), color=(0,0,0))
-            '''
-            visual_disclinations(lines, Nx, new_figure=False, 
-                                 min_length=11, window_cross=9, window_loop=9,
-                                 N_ratio_cross=3, N_ratio_loop=3,
-                                 loop_color=(0,0,0), cross_color=(0,0,0))
+        # make plot of defect points
+        mlab.points3d(
+            defect_indices[:,0], defect_indices[:,1], defect_indices[:,2],
+            scale_factor=defect_size, opacity=defect_opacity, color=defect_color
+            )
 
 
 
@@ -833,7 +818,7 @@ def visualize_nematics_field(n=[0], S=[0],
             
         else:
             cord1 = []
-            cord2 = []
+            cord2 = []  
             cord3 = []
             nx = []
             ny = []
@@ -843,21 +828,21 @@ def visualize_nematics_field(n=[0], S=[0],
                 indexall_n = [indexx_n, indexy_n, indexz_n]
                 indexall_n[i] = indexall[i][planes]
 
-                inx, iny, inz = np.meshgrid(indexall_n[0], indexall_n[1], indexall_n[2], indexing='ij')
-                ind = (inx, iny, inz)
+                ind = tuple(np.array(list(product(*indexall_n))).T)
 
-                cord1_here = (X[ind])*expand_ratio[0] - n[ind][..., 0]*n_length/2 + origin[0]
-                cord2_here = (Y[ind])*expand_ratio[1] - n[ind][..., 1]*n_length/2 + origin[1]
-                cord3_here = (Z[ind])*expand_ratio[2] - n[ind][..., 2]*n_length/2 + origin[2]
+                cord1_here = (X[*ind])*expand_ratio[0] - n[*ind][..., 0]*n_length/2 + origin[0]
+                cord2_here = (Y[*ind])*expand_ratio[1] - n[*ind][..., 1]*n_length/2 + origin[1]
+                cord3_here = (Z[*ind])*expand_ratio[2] - n[*ind][..., 2]*n_length/2 + origin[2]
 
-                nx_here = n[ind][..., 0]
-                ny_here = n[ind][..., 1]
-                nz_here = n[ind][..., 2]
+                nx_here = n[*ind][..., 0]
+                ny_here = n[*ind][..., 1]
+                nz_here = n[*ind][..., 2]
 
                 if n_color_scalars == True:
-                    scalars_here = n_color_func(n[ind])
+                    scalars_here = n_color_func(n[*ind])
                 else:
-                    scalars_here = X[ind]*0
+                    scalars_here = X[*ind]*0
+                
 
                 cord1 = np.concatenate( [ cord1, cord1_here.reshape(-1) ] )
                 cord2 = np.concatenate( [ cord2, cord2_here.reshape(-1) ] )
@@ -870,6 +855,14 @@ def visualize_nematics_field(n=[0], S=[0],
                 scalars = np.concatenate([scalars, scalars_here.reshape(-1)])
 
         # make plot
+        cord1 = cord1.reshape(-1)
+        cord2 = cord2.reshape(-1)
+        cord3 = cord3.reshape(-1)
+        nx = nx.reshape(-1)
+        ny = ny.reshape(-1)
+        nz = nz.reshape(-1)
+
+        
         vector = mlab.quiver3d(
                 cord1, cord2, cord3,
                 nx, ny, nz,
@@ -882,6 +875,9 @@ def visualize_nematics_field(n=[0], S=[0],
                 )
         if n_color_scalars:
             vector.glyph.color_mode = 'color_by_scalar'
+        
+
+
         
         # make colorbar of n
         if n_color_scalars == True:
