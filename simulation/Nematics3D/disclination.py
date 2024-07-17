@@ -6,7 +6,7 @@
 import numpy as np
 import time
 
-def defect_detect(n_origin, threshold=0, boundary_periodic=0, print_time=False):
+def defect_detect(n_origin, threshold=0, boundary_periodic=0, planes=[0,1,2], print_time=False):
     #! Introduce the format of defect_indices
     #! Change the radius if needed
     '''
@@ -30,6 +30,14 @@ def defect_detect(n_origin, threshold=0, boundary_periodic=0, print_time=False):
                         Flag to indicate whether to consider periodic boundaries in each dimension. 
                         If only one bool x is given, it is interprepted as (x,x,x)
                         Default is 0, no consideration of periodic boundaries in any dimension
+
+    planes : array, optional
+             Indicate the direction of planes whose defects are about to be found.
+             0, 1, 2 stands for x-plane, y-plane, z-plane, seperately.
+             For example, if planes=[0], it will only find defects on seperate x-planes,
+             or in other words, it will NOT calculate the winding number along x-direction.
+             Default is [0,1,2], to analyze all directions
+
 
     print_time : bool, optional
                  Flag to print the time taken for each direction. 
@@ -68,52 +76,58 @@ def defect_detect(n_origin, threshold=0, boundary_periodic=0, print_time=False):
 
     now = time.time()
 
+    defect_indices = np.empty((0,3), float)
+
     # X-direction
-    here = n[:, 1:, :-1]
-    if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:, :-1, :-1], here))
-    here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:, 1:, :-1])
-    if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:, 1:, 1:], here))
-    here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:, 1:, 1:])
-    if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:, :-1, 1:], here))
-    here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:, :-1, 1:])
-    test = np.einsum('lmni, lmni -> lmn', n[:, :-1, :-1], here)
-    defect_indices = np.array(np.where(test<threshold)).transpose().astype(float)
-    defect_indices[:,1:] = defect_indices[:,1:]+0.5
-    if print_time:
-        print('finish x-direction, with', str(round(time.time()-now,2))+'s')
-    now = time.time()
+    if 0 in planes:
+        here = n[:, 1:, :-1]
+        if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:, :-1, :-1], here))
+        here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:, 1:, :-1])
+        if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:, 1:, 1:], here))
+        here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:, 1:, 1:])
+        if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:, :-1, 1:], here))
+        here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:, :-1, 1:])
+        test = np.einsum('lmni, lmni -> lmn', n[:, :-1, :-1], here)
+        temp = np.array(np.where(test<threshold)).transpose().astype(float)
+        temp[:,1:] = temp[:,1:]+0.5
+        defect_indices = np.concatenate([ defect_indices, temp ])
+        if print_time:
+            print('finish x-direction, with', str(round(time.time()-now,2))+'s')
+        now = time.time()
 
     # Y-direction
-    here = n[1:, :, :-1]
-    if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:-1,:, :-1], here))
-    here = np.einsum('lmn, lmni -> lmni',if_parallel, n[1:, :, :-1])
-    if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[1:, :, 1:], here))
-    here = np.einsum('lmn, lmni -> lmni',if_parallel, n[1:, :, 1:])
-    if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:-1, :, 1:], here))
-    here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:-1, :, 1:])
-    test = np.einsum('lmni, lmni -> lmn', n[:-1, :, :-1], here)
-    temp = np.array(np.where(test<threshold)).transpose().astype(float)
-    temp[:, [0,2]] = temp[:, [0,2]]+0.5
-    defect_indices = np.concatenate([ defect_indices, temp ])
-    if print_time:
-        print('finish y-direction, with', str(round(time.time()-now,2))+'s')
-    now = time.time()
+    if 1 in planes:
+        here = n[1:, :, :-1]
+        if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:-1,:, :-1], here))
+        here = np.einsum('lmn, lmni -> lmni',if_parallel, n[1:, :, :-1])
+        if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[1:, :, 1:], here))
+        here = np.einsum('lmn, lmni -> lmni',if_parallel, n[1:, :, 1:])
+        if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:-1, :, 1:], here))
+        here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:-1, :, 1:])
+        test = np.einsum('lmni, lmni -> lmn', n[:-1, :, :-1], here)
+        temp = np.array(np.where(test<threshold)).transpose().astype(float)
+        temp[:, [0,2]] = temp[:, [0,2]]+0.5
+        defect_indices = np.concatenate([ defect_indices, temp ])
+        if print_time:
+            print('finish y-direction, with', str(round(time.time()-now,2))+'s')
+        now = time.time()
 
     # Z-direction
-    here = n[1:, :-1]
-    if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:-1, :-1], here))
-    here = np.einsum('lmn, lmni -> lmni',if_parallel, n[1:, :-1])
-    if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[1:, 1:], here))
-    here = np.einsum('lmn, lmni -> lmni',if_parallel, n[1:, 1:])
-    if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:-1, 1:], here))
-    here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:-1, 1:])
-    test = np.einsum('lmni, lmni -> lmn', n[:-1, :-1], here)
-    temp = np.array(np.where(test<threshold)).transpose().astype(float)
-    temp[:, :-1] = temp[:, :-1]+0.5
-    defect_indices = np.concatenate([ defect_indices, temp ])
-    if print_time:
-        print('finish z-direction, with', str(round(time.time()-now,2))+'s')
-    now = time.time()
+    if 2 in planes:
+        here = n[1:, :-1]
+        if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:-1, :-1], here))
+        here = np.einsum('lmn, lmni -> lmni',if_parallel, n[1:, :-1])
+        if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[1:, 1:], here))
+        here = np.einsum('lmn, lmni -> lmni',if_parallel, n[1:, 1:])
+        if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:-1, 1:], here))
+        here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:-1, 1:])
+        test = np.einsum('lmni, lmni -> lmn', n[:-1, :-1], here)
+        temp = np.array(np.where(test<threshold)).transpose().astype(float)
+        temp[:, :-1] = temp[:, :-1]+0.5
+        defect_indices = np.concatenate([ defect_indices, temp ])
+        if print_time:
+            print('finish z-direction, with', str(round(time.time()-now,2))+'s')
+        now = time.time()
 
     # Wrap with the periodic boundary condition
     for i, if_periodic in enumerate(boundary_periodic):
@@ -123,6 +137,80 @@ def defect_detect(n_origin, threshold=0, boundary_periodic=0, print_time=False):
 
     return defect_indices
 
+def find_defect_n(defect_indices, size=0):
+    '''
+    To find the directors enclosing the defects.
+    For example, the defect locates at (10, 5.5, 14.5) in the unit of indices
+    the directors enclosing the defects would locate at:
+    (10, 5, 14)
+    (10, 5, 15)
+    (10, 6, 14)
+    (10, 6, 15)
+
+    Parameters
+    ----------
+    defect_indices : array, (defect_num, 3)
+                     The array that includes all the indices of defects.
+                     For each defect, one of the indices should be integer and the rest should be half-integer
+                     Usually defect_indices are generated by defect_defect() in this module
+
+    size : int, or array of three ints
+           The size of the box, which is used to delete the directors outsize the box.
+           Directors outsize the box may appear when the defect is near the wall and periodic boundary condition is applied.
+           Default is 0, interprepted as do not delete any directors  
+
+    Returns
+    -------
+    defect_n : array, (4*defect_num, 3) 
+               The indices of directors enclosing the defects               
+    '''
+
+    if len(np.shape([size])) == 1:
+        size = np.array([size]*3)
+    else:
+        size = np.array(size)
+    # delete all the defects which will generate directors out of the box
+    if np.sum(size) != 0:
+        defect_indices = defect_indices[np.where(np.all(defect_indices<=(size-1), axis=1))]
+
+    defect_num = np.shape(defect_indices)[0]
+
+    defect_n = np.zeros((4*defect_num,3))
+
+    defect_n0 = np.zeros((defect_num,3))
+    defect_n1 = np.zeros((defect_num,3))
+    defect_n2 = np.zeros((defect_num,3))
+    defect_n3 = np.zeros((defect_num,3))
+
+    # find the layer of each defect (where the index is integer)
+    cond_layer = defect_indices%1==0
+
+    # the layer is unchanged
+    defect_n0[cond_layer] = defect_indices[cond_layer]
+    defect_n1[cond_layer] = defect_indices[cond_layer]
+    defect_n2[cond_layer] = defect_indices[cond_layer]
+    defect_n3[cond_layer] = defect_indices[cond_layer]
+
+    defect_n0[~cond_layer] = defect_indices[~cond_layer] - 0.5
+    defect_n3[~cond_layer] = defect_indices[~cond_layer] + 0.5
+
+    temp = defect_indices[~cond_layer] - 0.5
+    temp[1::2] = temp[1::2] + 1
+    defect_n1[~cond_layer] = temp
+
+    temp = defect_indices[~cond_layer] - 0.5
+    temp[:-1:2] = temp[:-1:2] + 1
+    defect_n2[~cond_layer] = temp
+
+    index_list = np.arange(0, 4*defect_num, 4)
+    defect_n[index_list] = defect_n0
+    defect_n[index_list+1] = defect_n1
+    defect_n[index_list+2] = defect_n2
+    defect_n[index_list+3] = defect_n3
+    defect_n = np.unique(defect_n, axis=0)
+    defect_n = defect_n.astype(int)
+
+    return defect_n
 
 
 def sort_loop_indices(coords):
@@ -218,7 +306,7 @@ def smoothen_line(line_coord, window_ratio=3, window_length=None, order=3, N_out
             Default is 3.
 
     N_out : float, optional
-            Number of points in the output smoothened line compared to the original number of points (N). 
+            Number of points in the output smoothened line compared to the original number of points. 
             Default is 3.
 
     mode : str, optional

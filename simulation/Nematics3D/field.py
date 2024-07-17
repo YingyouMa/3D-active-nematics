@@ -422,6 +422,566 @@ def visualize_nematics_field(n=[0], S=[0],
                              defect_opacity=0.8, defect_size_ratio_to_dist=2, defect_color=(0,0,0),
                              boundary_periodic=False, defect_threshold=0, defect_print_time=False,
                              new_figure=True, bgcolor=(1,1,1), fgcolor=(0,0,0), if_axes=False,
+                            defect_n_opacity=-1,
+                             ):
+
+    #! float n_interval with interpolation
+    #! different styles for different planes
+    #! input defect indices
+    #! plotdefects smooth
+    #! axes without number
+    #! with class
+    #! warning about boundary condition of classfication of defect lines
+    #! introduction of n_plane_index
+    #! defect at cencter
+
+    """
+    Visualize a 3D nematics field using Mayavi. 
+    The function provides options to plot the director field, scalar order parameter contours, and defect lines.
+    The locations of defect points are automatically analyzed by the input director field.
+    
+    Parameters
+    ----------
+    n : numpy array, N x M x L x 3, optional
+        The director of each grid point.
+        Default is [0], indicating no data of n.
+        The shape of n, (N, M, L), must match the shape of S if S is plotted with n or defects.
+
+    S : numpy array, N x M x L, optional
+        the scalar order parameter of each grid point.
+        Default is [0], which means no data of S.
+        The shape of n, (N, M, L), must match the shape of S if S is plotted with n or defects.
+
+    plotn : bool, optional
+            If True, plot the director field. 
+            Default is True.   
+
+    plotS : bool, optional
+            If True, plot contour of scalar order parameter. 
+            Default is True.
+
+    plotdefects : bool, optional
+                  If True, plot the defect points calculated by the director field. 
+                  Default is False.
+
+    space_index_ratio : float or array of three floats, optional
+                        Ratio between the unit of real space to the unit of grid indices.
+                        If the box size is N x M x L and the size of grid of n and S is n x m x l,
+                        then space_index_ratio should be (N/n, M/m, L/l).
+                        If a single float x is provided, it is interpreted as (x, x, x).
+                        Default is 1.
+
+    sub_space : int or array of int as ((xmin, xmax), (ymin, ymax), (zmin, zmax)), optional
+                Specifies a sub-box to visualize.
+                If an array, it provides the range of sub box by the indices of grid
+                If an int, it represents a sub box in the center of the whole box, where the zoom rate is sub_space.
+                Default is 1, as the whole box is visualized.
+
+     origin : array of three floats, optional
+              Origin of the plot, translating the whole system in real space
+              Default is (0, 0, 0), as the system is not translated 
+
+    expand_ratio : float or array of three floats, optional
+                   Ratio to stretch or compress the plot along each dimension.
+                   Usually used to see some structure more clearly.
+                   If a single float x is provided, it is interpreted as (x, x, x).
+                   Default is 1, as no stretch or compress.  
+                   Warning: if expand_ratio is not 1 or (1,1,1), the plot will be deformed, so that it does NOT stand for the real space anymore.
+
+
+    n_opacity : float, optional
+                Opacity of the director field. 
+                Default is 1.
+
+    n_interval : int or array of three int, optional
+                 Interval between directors in each dimension, specified in grid indices.
+                 For example, if n_interval = (1,2,2), it will plot all directors in x-dimension but plot directors alternatively in y and z-dimension.
+                 So large n_internval leads to dilute directors in the plot.
+                 If a single int x is provided, it is interpreted as (x, x, x).
+                 Default is (1, 1, 1), plotting all directors.
+
+    n_shape : str, optional
+              Shape of the director glyphs. It's usually 'cylinder' or '2ddash'.
+              Default is 'cylinder'.
+              Warning: some of glyph shapes can not be controlled by n_width. 
+              For example, n_width works for n_shape='2ddash' but does not works for n_shape='cylinder'.
+
+    n_width : float, optional
+              Width of the director glyphs. 
+              It does not work for all shapes. For example, it works for n_shape='2ddash' but does not work for n_shape='cylinder'.
+              Default is 2.
+
+    n_color_func : function or array of three float, optional
+                   Color for the director glyphs. 
+                   If it is a function, the input should be an array of shape (N, M, L, 3) and output should be array of shape (N,M,L), which is the scalars to color the directors.
+                   If it is an array, it specifies RGB color for all directors.
+                   For example, if n_color_func=(1,0,0), all directors will be red.
+                   Default is n_color_func_default, a function I personally used to distinguish directors with different orientation.
+                   Warning: Two directors with the SAME color could have DIFFERENT orientation, 
+                   while two directors with different color always have different orientations.
+                        
+    n_length_ratio_to_dist : float, optional
+                             Ratio bwtween the length of director's glyph and the minimal distance between two glyphs.
+                             Used to set the length of direcor's glyph.
+                             Default is 0.8.
+
+    n_if_colorbar : bool, optional
+                    If True, display a colorbar for the director field when n_color_func is a function.
+                    Default is True.
+
+    n_colorbar_params : dict, optional
+                        Parameters for the director field colorbar. 
+                        For example, {"orientation": "vertical"} will make the colorbar vertical.
+                        Check the document of mlab.colorbar() to see all options.
+                        Default is {}.
+
+    n_colorbar_range : array of two float, or "default', or 'max', optional
+                       Range for the director field colorbar. 
+                       If n_colorbar_range is an array of two floats (a,b), the range will be (a,b).
+                       If n_colorbar_range='max', the range will cover the minimum and maximum value of scalars (read the introduction of n_color_func).
+                       If n_colorbar_range='default', it only works for n_color_func=n_color_func_default. The range will be (0, 2.6) as the therotical range of the default function.
+                       Default is 'default'.
+
+    S_threshold : float, optional
+                  Threshold for plotting scalar order parameter contours. 
+                  Default is 0.45.
+
+    S_opacity : float, optional
+                Opacity of the scalar order parameter field. Default is 1.
+
+    S_plot_params : dict, optional
+                    Parameters for plotting the scalar order parameter field, except opacity and threshold.
+                    For example, {'color': (1,1,1)} will make the contours white.
+                    Check the document of mlab.contour3D() to see all options.
+                    Default is {}.
+
+    S_if_colorbar : bool, optional
+                    If True, display a colorbar for the scalar order parameter field based on the value of S. 
+                    If the color of contours is set, colorbar will NOT be presented.
+                    Default is True.
+
+    S_colorbar_params : dict, optional
+                        Parameters for the scalar order parameter colorbar. 
+                        For example, {"orientation": "vertical"} will make the colorbar vertical.
+                        Check the document of mlab.colorbar() to see all options.
+                        Default is {}.
+
+    S_colorbar_range : array of two float, optional
+                       Range for the scalar order parameter colorbar. 
+                       Default is (0, 1).
+
+    defect_opacity : float, optional
+                     Opacity of the defect points. 
+                     Default is 0.8.
+
+    defect_size_ratio_to_dist : float, optional
+                                The ratio bwtween the size of defect points to the minimal distance between two glyphs.
+                                Used to set the size of defect points.
+                                Default is 2.
+
+    boundary_periodic : bool, optional
+                        If True, use periodic boundary conditions during defects detection. 
+                        Default is False.
+                        Warning: If only part of the box is selected by sub_space so that it will not have the periodic boundary condition,
+                        boundary_periodic will be reset to False automatically if it is initially True.
+
+    defect_threshold : float, optional
+                       Threshold for detecting defects. 
+                       When calculating the winding number, if the inner product of neighboring directors after one loop is smaller than defect_threshold,
+                       the center of the loop is identified as one defect.
+                       Default is 0.
+
+    defect_print_time : bool, optional
+                        If True, print the time taken to detect defects in each dimension. 
+                        Default is False.
+
+    new_figure : bool, optional
+                 If True, create a new figure for the plot. 
+                 Default is True.
+
+    bgcolor : array of three floats, optional
+              Background color of the plot in RGB.
+              Default is (0, 0, 0), white.
+
+    fgcolor : array of three floats, optional
+              Foreground color of the plot in RBG.
+              It is the color of all text annotation labels (axes, orientation axes, scalar bar labels). 
+              It should be sufficiently far from bgcolor to see the annotation texts.
+              Default is (0,0,0), black
+
+    if_axes : bool, optional
+              If True, display axes in the plot in the unit of real space. 
+              Default is False.
+
+    Returns
+    -------
+    S : numpy array, N x M x L
+        the biggest eigenvalue as the scalar order parameter of each grid
+
+    n : numpy array, N x M x L x 3
+        the eigenvector corresponding to the biggest eigenvalue, as the director, of each grid.
+
+
+    Dependencies
+    ------------
+    - NumPy: 1.26.4
+    - mayavi: 4.8.2
+
+    """
+    from .disclination import defect_detect, find_defect_n
+
+    # examine the input data
+    n = np.array(n)
+    S = np.array(S)
+    if S.size==1 and plotS==True:
+        raise NameError("No data of S input to plot contour plot of S.")
+    if n.size==1 and (plotn==True or plotdefects==True):
+        raise NameError("no data of n input to plot director field or defects.")
+    if S.size!=1 and n.size!=1:
+        if np.linalg.norm( np.array(np.shape(n)[:3]) - np.array(np.shape(S)) ) != 0:
+            raise NameError('The shape of n and S should be the same.')
+
+    from mayavi import mlab
+
+    # examine the input parameters
+    if len(np.shape([space_index_ratio])) == 1:
+        space_index_ratio = (space_index_ratio, space_index_ratio, space_index_ratio)
+    if len(np.shape([n_interval])) == 1:
+        n_interval = (n_interval, n_interval, n_interval)
+    if len(np.shape([expand_ratio])) == 1:
+        expand_ratio = np.array([expand_ratio, expand_ratio, expand_ratio])
+    else:
+        expand_ratio = np.array(expand_ratio)
+    if np.linalg.norm(expand_ratio-1) != 0 and if_axes==True:
+        print("\nWarning: The expand_ratio is not (1,1,1)")
+        print("This means the distance between glyphs are changed")
+        print("The values on the coordinate system (axes of figure) does NOT present the real space.")
+    if n_shape=='cylinder' and n_width!=2:
+        print('\nWarning: n_shape=cylinder, whose thickness can not be controlled by n_width.')
+
+
+    # the basic axes for the plotting in real space of the entire box
+    if np.size(n) > 1:
+        Nx, Ny, Nz = np.array(np.shape(n)[:3]) 
+    else:
+        Nx, Ny, Nz = np.array(np.shape(S)[:3])    
+    x = np.linspace(0, Nx*space_index_ratio[0]-1, Nx)
+    y = np.linspace(0, Ny*space_index_ratio[1]-1, Ny)
+    z = np.linspace(0, Nz*space_index_ratio[2]-1, Nz)
+    X, Y, Z = np.meshgrid(x,y,z, indexing='ij')
+
+    # create a new figure with the given background if needed
+    if new_figure:
+        mlab.figure(bgcolor=bgcolor, fgcolor=fgcolor)
+
+    # select the sub box to be plotted
+    if len(np.shape([sub_space])) == 1:
+        indexx = np.arange( int(Nx/2 - Nx/2/sub_space), int(Nx/2 + Nx/2/sub_space) )
+        indexy = np.arange( int(Ny/2 - Ny/2/sub_space), int(Ny/2 + Ny/2/sub_space) )
+        indexz = np.arange( int(Nz/2 - Nz/2/sub_space), int(Nz/2 + Nz/2/sub_space) )
+    else:
+        indexx = np.arange( sub_space[0][0], sub_space[0][-1]+1 )
+        indexy = np.arange( sub_space[1][0], sub_space[1][-1]+1 )
+        indexz = np.arange( sub_space[2][0], sub_space[2][-1]+1 )
+
+    inx, iny, inz = np.meshgrid(indexx, indexy, indexz, indexing='ij')
+    ind = (inx, iny, inz)
+
+    # when we select the subbox, we need to know the "origin" of the subbox in the unit of indices, as start_point
+    # in the following, we might translate the indices by start_point
+    if len(np.shape([sub_space])) == 1:
+        start_point = [x[int(Nx/2 - Nx/2/sub_space)],
+                        y[int(Ny/2 - Ny/2/sub_space)],
+                        z[int(Nz/2 - Nz/2/sub_space)]]
+    else:
+        start_point = [x[sub_space[0][0]],
+                        y[sub_space[1][0]],
+                        z[sub_space[2][0]]]
+
+    #plot defects
+    if plotdefects:
+
+        if sub_space != 1 and boundary_periodic == True:
+            print('\nWarning: The periodic boundary condition is only possible for the whole box')
+            print('Automatically deactivate the periodic boundary condition')
+            print('Read the document for more information.')
+            boundary_periodic = False
+
+        # find defects
+        print('\nDetecting defects')
+        defect_indices = defect_detect(n[ind], boundary_periodic=boundary_periodic, threshold=defect_threshold,
+                                       print_time=defect_print_time)
+        print('Finished!')
+
+        # Move the defect points to have the correct location in real space
+        defect_indices = np.einsum('na, a, a -> na',
+                                   defect_indices, space_index_ratio, expand_ratio)
+
+        defect_indices = defect_indices + np.broadcast_to(start_point, (np.shape(defect_indices)[0],3))
+        defect_indices = defect_indices + np.broadcast_to(origin, (np.shape(defect_indices)[0],3))
+
+        # set the size of defect points
+        distx = (x[indexx[1]] - x[indexx[0]]) * expand_ratio[0]
+        disty = (y[indexy[1]] - y[indexy[0]]) * expand_ratio[1]
+        distz = (z[indexz[1]] - z[indexz[0]]) * expand_ratio[2]
+        dist = [distx, disty, distz]
+        defect_size = np.min(dist) * defect_size_ratio_to_dist
+        print(f'\nSize of defect points: {defect_size}')
+
+        # make plot of defect points
+        mlab.points3d(
+            defect_indices[:,0], defect_indices[:,1], defect_indices[:,2],
+            scale_factor=defect_size, opacity=defect_opacity, color=defect_color
+            )
+
+
+
+
+    # plot contours of S
+    if plotS:
+
+        if np.min(S[ind])>=S_threshold or np.max(S[ind])<=S_threshold:
+
+            print(f'\nThe range of S is ({np.min(S[ind])}, {np.max(S[ind])})')
+            print('The threshold of contour plot of S is out of range')
+            print('No S region is plotted')
+
+        else:
+            # the grid in real space to plot S
+            cord1 = X[ind]*expand_ratio[0] + origin[0]
+            cord2 = Y[ind]*expand_ratio[1] + origin[1]
+            cord3 = Z[ind]*expand_ratio[2] + origin[2]
+
+            # check if the color of contours is set
+            S_plot_color = S_plot_params.get('color')
+
+            # make plot
+            S_region = mlab.contour3d(cord1, cord2, cord3, S[ind], 
+                                      contours=[S_threshold], opacity=S_opacity, **S_plot_params)
+            # make colorbar of S
+            if S_plot_color == None:
+                if S_if_colorbar:
+                    S_colorbar_label_fmt    = S_colorbar_params.get('label_fmt', '%.2f')
+                    S_colorbar_nb_labels    = S_colorbar_params.get('nb_labels', 5)
+                    S_colorbar_orientation  = S_colorbar_params.get('orientation', 'vertical')
+                    S_lut_manager = mlab.colorbar(object=S_region,
+                                                  label_fmt=S_colorbar_label_fmt, 
+                                                  nb_labels=S_colorbar_nb_labels, 
+                                                  orientation=S_colorbar_orientation,
+                                                  **S_colorbar_params)
+                    S_lut_manager.data_range=(S_colorbar_range)
+                    if plotn and n_if_colorbar:
+                        print('\nWarning2: The colorbars for n and S both exist.')
+                        print('These two colorbars might interfere with each other visually.')
+            elif S_if_colorbar==True:
+                print('\nThe color of S is set. So there is no colorbar for S.')
+
+    # plot directors
+    if plotn:
+
+        # the axes to plot n in real space is selected by n_interval
+        indexx_n = indexx[::n_interval[0]]
+        indexy_n = indexy[::n_interval[1]]
+        indexz_n = indexz[::n_interval[2]]
+        indexall = (indexx, indexy, indexz)
+
+        # set the length of directors' glyph
+        distx = (x[indexx_n[1]] - x[indexx_n[0]]) * expand_ratio[0]
+        disty = (y[indexy_n[1]] - y[indexy_n[0]]) * expand_ratio[1]
+        distz = (z[indexz_n[1]] - z[indexz_n[0]]) * expand_ratio[2]
+        dist = [distx, disty, distz]
+        n_length = np.min(dist) * n_length_ratio_to_dist
+        print(f'\nThe length of directors\' glyph: {n_length}')
+
+        if len(n_plane_index) == 0:
+            ind_init = np.array(list(product(indexx_n, indexy_n, indexz_n)))
+        else:
+            ind_init = np.empty((0,3), int)
+            defect_n = np.empty((0,3), int)
+            for i, planes in enumerate(n_plane_index): #####################################! layer index
+                if len(planes) != 0:
+                    indexall_n = [indexx_n, indexy_n, indexz_n]
+                    indexall_n[i] = indexall[i][planes]
+                    ind_init = np.vstack([ind_init, np.array(list(product(*indexall_n)))])
+                    inx, iny, inz = np.meshgrid(indexall_n[0], indexall_n[1], indexall_n[2], indexing='ij')
+                    ind_local = (inx, iny, inz)
+                    defect_local = defect_detect(n[ind_local], planes=[i],
+                                                 threshold=defect_threshold, print_time=defect_print_time)
+                    defect_n_local = find_defect_n(defect_local)
+                    defect_n_local[:,0] = indexall_n[0][defect_n_local[:,0]]
+                    defect_n_local[:,1] = indexall_n[1][defect_n_local[:,1]]
+                    defect_n_local[:,2] = indexall_n[2][defect_n_local[:,2]]
+                    defect_n_local = defect_n_local + np.broadcast_to(origin, (np.shape(defect_n_local)[0],3))
+                    defect_n = np.concatenate([defect_n, defect_n_local])
+
+        if defect_n_opacity>0:
+            # if not plotdefects: ###############################################! for bulk
+            #     print('\nDetecting defects')
+            #     defect_indices = defect_detect(n[ind_init], threshold=defect_threshold,
+            #                                 print_time=defect_print_time)
+            #     print('Finished!')
+            #     defect_indices = defect_indices + np.broadcast_to(start_point, (np.shape(defect_indices)[0],3))
+            # defect_n = find_defect_n(defect_indices_n, size=[np.max(indexx_n)+1, np.max(indexy_n)+1, np.max(indexz_n)+1])
+
+            dtype = [('x', int), ('y', int), ('z', int)]
+            tempA = ind_init.view(dtype)
+            tempB = defect_n.view(dtype)
+            n_order_ind = np.setdiff1d(tempA, tempB)
+            n_defect_ind = np.setdiff1d(tempA, n_order_ind)
+            n_order_ind = n_order_ind.view(int).reshape(-1,3)
+            n_defect_ind = n_defect_ind.view(int).reshape(-1,3)
+            
+        else:
+            n_order_ind = ind_init
+            n_defect_ind = np.array([0])
+
+        n_order_ind = tuple(n_order_ind.T)
+        n_defect_ind = tuple(n_defect_ind.T)
+
+        def make_plot_directors(ind, n_opacity):
+
+            cord1 = (X[*ind])*expand_ratio[0] - n[*ind][..., 0]*n_length/2 + origin[0]
+            cord2 = (Y[*ind])*expand_ratio[1] - n[*ind][..., 1]*n_length/2 + origin[1]
+            cord3 = (Z[*ind])*expand_ratio[2] - n[*ind][..., 2]*n_length/2 + origin[2]
+
+            nx = n[*ind][..., 0]
+            ny = n[*ind][..., 1]
+            nz = n[*ind][..., 2]
+
+            # examine if directors are colored by function or uniform color
+            try:
+                len(n_color_func)
+                scalars = X[*ind]*0
+                n_color_scalars = False
+                n_color = n_color_func
+            except:
+                scalars = n_color_func(n[*ind])
+                n_color_scalars = True
+                n_color = (1,1,1)
+
+            # make plot
+            cord1 = cord1.reshape(-1)
+            cord2 = cord2.reshape(-1)
+            cord3 = cord3.reshape(-1)
+            nx = nx.reshape(-1)
+            ny = ny.reshape(-1)
+            nz = nz.reshape(-1)
+
+            object = mlab.quiver3d(
+                    cord1, cord2, cord3,
+                    nx, ny, nz,
+                    mode=n_shape,
+                    scalars=scalars,
+                    scale_factor=n_length,
+                    opacity=n_opacity,
+                    line_width=n_width,
+                    color=n_color
+                    )
+            if n_color_scalars:
+                object.glyph.color_mode = 'color_by_scalar'
+
+            return object, n_color_scalars, scalars
+
+        vector, n_color_scalars, scalars = make_plot_directors(n_order_ind, n_opacity=n_opacity)
+
+        if np.size(n_defect_ind)>1:
+            make_plot_directors(n_defect_ind, n_opacity=defect_n_opacity)
+        
+        # make colorbar of n
+        if n_color_scalars == True:
+            if n_if_colorbar:
+                n_colorbar_label_fmt    = n_colorbar_params.get('label_fmt', '%.2f')
+                n_colorbar_nb_labels    = n_colorbar_params.get('nb_labels', 5)
+                n_colorbar_orientation  = n_colorbar_params.get('orientation', 'vertical')
+
+                n_lut_manager = mlab.colorbar(object=vector,
+                                                label_fmt=n_colorbar_label_fmt, 
+                                                nb_labels=n_colorbar_nb_labels, 
+                                                orientation=n_colorbar_orientation,
+                                                **n_colorbar_params)
+                
+                
+                if n_colorbar_range == 'max':
+                    n_colorbar_range = (np.min(scalars), np.max(scalars))
+                elif n_colorbar_range =='default':
+                    if n_color_func==n_color_func_default:
+                        n_colorbar_range = (0, 2.6)
+                    else:
+                        print('\nWarning: When n_color_func is a function which is not default, and there exists n_colorbar')
+                        print('n_colorbar_range should be \'max\', or set by hand, but not \'default\'.')
+                        print('Here n_colorbar_range is automatically turned to be \'max\'.')
+                        print('Read the document for more information')
+
+                n_lut_manager.data_range=(n_colorbar_range)
+                
+
+        elif n_if_colorbar==True:
+            print('\nThe color of n is set. So there is no colorbar for n.')
+    
+    # add axes if neede
+    if if_axes:
+        mlab.axes()
+
+
+def nematics_color_embed(n):
+
+    n = np.array(n)
+
+    CMYK = np.zeros((*(np.shape(n)[:-1]),4))
+    RGB = np.zeros((*(np.shape(n)[:-1]), 3))
+
+    CMYK[..., 0] = n[..., 0] * n[..., 1]
+    CMYK[..., 1] = n[..., 0] * n[..., 2]
+    CMYK[..., 2] = n[..., 1]**2 - n[..., 2]**2
+    CMYK[..., 3] = n[..., 1] * n[..., 2]
+
+    CMYK = CMYK/2 + 0.5
+
+    RGB[..., 0] = ( 1-CMYK[..., 0] ) * ( 1-CMYK[..., 3] )
+    RGB[..., 1] = ( 1-CMYK[..., 1] ) * ( 1-CMYK[..., 3] )
+    RGB[..., 2] = ( 1-CMYK[..., 2] ) * ( 1-CMYK[..., 3] )
+
+    return RGB
+
+def nematics_color_immerse(n):
+
+    n = np.array(n)
+
+    RGB = np.zeros((*(np.shape(n)[:-1]), 3))
+
+    x = n[..., 0]
+    y = n[..., 1]
+    z = n[..., 2]
+
+    x2 = x**2
+    y2 = y**2
+    z2 = z**2
+
+    RGB[..., 0] = (2*x2-y2-z2) + 2*y*z*(y2-z2) + z*x*(x2-z2) + x*y*(y2-x2)
+    RGB[..., 1] = (y2-z2) + z*x*(z2-x2) + x*y*(y2-x2)
+    RGB[..., 2] = (x+y+z) * ( (x+y+z)**3 + 4*(y-x)*(z-y)*(x-z))
+
+    RGB[..., 0] = RGB[..., 0] / 2
+    RGB[..., 1] = RGB[..., 1] * np.sqrt(3) / 2
+    RGB[..., 2] = RGB[..., 2] /8
+
+    RGB[..., 0] = RGB[..., 0] / 1.87 + 0.42
+    RGB[..., 1] = RGB[..., 1] / 2 + 0.5
+    RGB[..., 2] = RGB[..., 2] / 1.3 + 0.13
+
+    return RGB
+
+def visualize_nematics_field_old(n=[0], S=[0],
+                             plotn=True, plotS=True, plotdefects=False,
+                             space_index_ratio=1, sub_space=1, origin=(0,0,0), expand_ratio=1,
+                             n_opacity=1, n_interval=(1,1,1), n_shape='cylinder', n_width=2, n_plane_index=[],
+                             n_color_func=n_color_func_default, n_length_ratio_to_dist=0.8,
+                             n_if_colorbar=True, n_colorbar_params={}, n_colorbar_range='default',
+                             S_threshold=0.45, S_opacity=1, S_plot_params={},
+                             S_if_colorbar=True, S_colorbar_params={}, S_colorbar_range=(0,1),
+                             defect_opacity=0.8, defect_size_ratio_to_dist=2, defect_color=(0,0,0),
+                             boundary_periodic=False, defect_threshold=0, defect_print_time=False,
+                             new_figure=True, bgcolor=(1,1,1), fgcolor=(0,0,0), if_axes=False,
                              ):
 
     #! float n_interval with interpolation
@@ -724,11 +1284,12 @@ def visualize_nematics_field(n=[0], S=[0],
         defect_size = np.min(dist) * defect_size_ratio_to_dist
         print(f'\nSize of defect points: {defect_size}')
 
-        # make plot of defect points
+        # make plot of defect points if there is no need to plot the smoothened lines
         mlab.points3d(
             defect_indices[:,0], defect_indices[:,1], defect_indices[:,2],
             scale_factor=defect_size, opacity=defect_opacity, color=defect_color
             )
+
 
 
 
@@ -804,7 +1365,7 @@ def visualize_nematics_field(n=[0], S=[0],
             n_color = (1,1,1)
 
         # if the planes of n are not set, use the default planes selected by n_interval
-        if np.size(n_plane_index) == 0:
+        if len(n_plane_index) == 0:
             
             # move the location of glyph so that the middle points of all glyphs form lattice
             # this comes from the fact and directors are lines without directions
@@ -818,7 +1379,7 @@ def visualize_nematics_field(n=[0], S=[0],
             
         else:
             cord1 = []
-            cord2 = []  
+            cord2 = []
             cord3 = []
             nx = []
             ny = []
@@ -828,21 +1389,21 @@ def visualize_nematics_field(n=[0], S=[0],
                 indexall_n = [indexx_n, indexy_n, indexz_n]
                 indexall_n[i] = indexall[i][planes]
 
-                ind = tuple(np.array(list(product(*indexall_n))).T)
+                inx, iny, inz = np.meshgrid(indexall_n[0], indexall_n[1], indexall_n[2], indexing='ij')
+                ind = (inx, iny, inz)
 
-                cord1_here = (X[*ind])*expand_ratio[0] - n[*ind][..., 0]*n_length/2 + origin[0]
-                cord2_here = (Y[*ind])*expand_ratio[1] - n[*ind][..., 1]*n_length/2 + origin[1]
-                cord3_here = (Z[*ind])*expand_ratio[2] - n[*ind][..., 2]*n_length/2 + origin[2]
+                cord1_here = (X[ind])*expand_ratio[0] - n[ind][..., 0]*n_length/2 + origin[0]
+                cord2_here = (Y[ind])*expand_ratio[1] - n[ind][..., 1]*n_length/2 + origin[1]
+                cord3_here = (Z[ind])*expand_ratio[2] - n[ind][..., 2]*n_length/2 + origin[2]
 
-                nx_here = n[*ind][..., 0]
-                ny_here = n[*ind][..., 1]
-                nz_here = n[*ind][..., 2]
+                nx_here = n[ind][..., 0]
+                ny_here = n[ind][..., 1]
+                nz_here = n[ind][..., 2]
 
                 if n_color_scalars == True:
-                    scalars_here = n_color_func(n[*ind])
+                    scalars_here = n_color_func(n[ind])
                 else:
-                    scalars_here = X[*ind]*0
-                
+                    scalars_here = X[ind]*0
 
                 cord1 = np.concatenate( [ cord1, cord1_here.reshape(-1) ] )
                 cord2 = np.concatenate( [ cord2, cord2_here.reshape(-1) ] )
@@ -855,14 +1416,6 @@ def visualize_nematics_field(n=[0], S=[0],
                 scalars = np.concatenate([scalars, scalars_here.reshape(-1)])
 
         # make plot
-        cord1 = cord1.reshape(-1)
-        cord2 = cord2.reshape(-1)
-        cord3 = cord3.reshape(-1)
-        nx = nx.reshape(-1)
-        ny = ny.reshape(-1)
-        nz = nz.reshape(-1)
-
-        
         vector = mlab.quiver3d(
                 cord1, cord2, cord3,
                 nx, ny, nz,
@@ -875,9 +1428,6 @@ def visualize_nematics_field(n=[0], S=[0],
                 )
         if n_color_scalars:
             vector.glyph.color_mode = 'color_by_scalar'
-        
-
-
         
         # make colorbar of n
         if n_color_scalars == True:
@@ -910,57 +1460,6 @@ def visualize_nematics_field(n=[0], S=[0],
     # add axes if neede
     if if_axes:
         mlab.axes()
-
-
-def nematics_color_embed(n):
-
-    n = np.array(n)
-
-    CMYK = np.zeros((*(np.shape(n)[:-1]),4))
-    RGB = np.zeros((*(np.shape(n)[:-1]), 3))
-
-    CMYK[..., 0] = n[..., 0] * n[..., 1]
-    CMYK[..., 1] = n[..., 0] * n[..., 2]
-    CMYK[..., 2] = n[..., 1]**2 - n[..., 2]**2
-    CMYK[..., 3] = n[..., 1] * n[..., 2]
-
-    CMYK = CMYK/2 + 0.5
-
-    RGB[..., 0] = ( 1-CMYK[..., 0] ) * ( 1-CMYK[..., 3] )
-    RGB[..., 1] = ( 1-CMYK[..., 1] ) * ( 1-CMYK[..., 3] )
-    RGB[..., 2] = ( 1-CMYK[..., 2] ) * ( 1-CMYK[..., 3] )
-
-    return RGB
-
-def nematics_color_immerse(n):
-
-    n = np.array(n)
-
-    RGB = np.zeros((*(np.shape(n)[:-1]), 3))
-
-    x = n[..., 0]
-    y = n[..., 1]
-    z = n[..., 2]
-
-    x2 = x**2
-    y2 = y**2
-    z2 = z**2
-
-    RGB[..., 0] = (2*x2-y2-z2) + 2*y*z*(y2-z2) + z*x*(x2-z2) + x*y*(y2-x2)
-    RGB[..., 1] = (y2-z2) + z*x*(z2-x2) + x*y*(y2-x2)
-    RGB[..., 2] = (x+y+z) * ( (x+y+z)**3 + 4*(y-x)*(z-y)*(x-z))
-
-    RGB[..., 0] = RGB[..., 0] / 2
-    RGB[..., 1] = RGB[..., 1] * np.sqrt(3) / 2
-    RGB[..., 2] = RGB[..., 2] /8
-
-    RGB[..., 0] = RGB[..., 0] / 1.87 + 0.42
-    RGB[..., 1] = RGB[..., 1] / 2 + 0.5
-    RGB[..., 2] = RGB[..., 2] / 1.3 + 0.13
-
-    return RGB
-
-
 
 
 
