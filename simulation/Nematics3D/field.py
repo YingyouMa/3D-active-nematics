@@ -840,22 +840,22 @@ def visualize_nematics_field(n=[0], S=[0],
 
         def make_plot_directors(ind, n_opacity):
 
-            cord1 = (X[*ind])*expand_ratio[0] - n[*ind][..., 0]*n_length/2 + origin[0]
-            cord2 = (Y[*ind])*expand_ratio[1] - n[*ind][..., 1]*n_length/2 + origin[1]
-            cord3 = (Z[*ind])*expand_ratio[2] - n[*ind][..., 2]*n_length/2 + origin[2]
+            cord1 = (X[ind])*expand_ratio[0] - n[ind][..., 0]*n_length/2 + origin[0]
+            cord2 = (Y[ind])*expand_ratio[1] - n[ind][..., 1]*n_length/2 + origin[1]
+            cord3 = (Z[ind])*expand_ratio[2] - n[ind][..., 2]*n_length/2 + origin[2]
 
-            nx = n[*ind][..., 0]
-            ny = n[*ind][..., 1]
-            nz = n[*ind][..., 2]
+            nx = n[ind][..., 0]
+            ny = n[ind][..., 1]
+            nz = n[ind][..., 2]
 
             # examine if directors are colored by function or uniform color
             try:
                 len(n_color_func)
-                scalars = X[*ind]*0
+                scalars = X[ind]*0
                 n_color_scalars = False
                 n_color = n_color_func
             except:
-                scalars = n_color_func(n[*ind])
+                scalars = n_color_func(n[ind])
                 n_color_scalars = True
                 n_color = (1,1,1)
 
