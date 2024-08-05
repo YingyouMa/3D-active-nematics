@@ -798,7 +798,7 @@ def visualize_nematics_field(n=[0], S=[0],
         else:
             ind_init = np.empty((0,3), int)
             defect_n = np.empty((0,3), int)
-            for i, planes in enumerate(n_plane_index): #####################################! layer index
+            for i, planes in enumerate(n_plane_index):
                 if len(planes) != 0:
                     indexall_n = [indexx_n, indexy_n, indexz_n]
                     indexall_n[i] = indexall[i][planes]
