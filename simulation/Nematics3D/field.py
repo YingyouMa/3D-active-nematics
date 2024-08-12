@@ -422,7 +422,7 @@ def visualize_nematics_field(n=[0], S=[0],
                              defect_opacity=0.8, defect_size_ratio_to_dist=2, defect_color=(0,0,0),
                              boundary_periodic=False, defect_threshold=0, defect_print_time=False,
                              new_figure=True, bgcolor=(1,1,1), fgcolor=(0,0,0), if_axes=False,
-                            defect_n_opacity=-1,
+                             defect_n_opacity=-1, n_if_color_loop=False
                              ):
 
     #! float n_interval with interpolation
@@ -613,6 +613,19 @@ def visualize_nematics_field(n=[0], S=[0],
               If True, display axes in the plot in the unit of real space. 
               Default is False.
 
+    defect_n_opacity : float, optional
+                       The opacity of directors around the defects.
+                       Default is -1, which means not to distinguish the directors around the defects or not
+    
+    n_if_color_loop : bool, optional
+                      If true, the directors will colored by nematics_color_immerse(), which use the immersion from RP2 to R3,
+                      where RP2 is the state space of 3D nematics and R3 is the state space of RGB.
+                      The specific advantage and shortage with this color function is briefly introduced in #! a document
+                      Here, to plot n with this method, the directors have to be plotted with a loop, rather than a parallel function,
+                      so it will need much more time.
+                      This flag will cover n_color_func and n_if_color_bar.
+                      Default is False, using the parallel way to color n.
+
     Returns
     -------
     S : numpy array, N x M x L
@@ -770,9 +783,6 @@ def visualize_nematics_field(n=[0], S=[0],
                                                   orientation=S_colorbar_orientation,
                                                   **S_colorbar_params)
                     S_lut_manager.data_range=(S_colorbar_range)
-                    if plotn and n_if_colorbar:
-                        print('\nWarning2: The colorbars for n and S both exist.')
-                        print('These two colorbars might interfere with each other visually.')
             elif S_if_colorbar==True:
                 print('\nThe color of S is set. So there is no colorbar for S.')
 
@@ -838,7 +848,7 @@ def visualize_nematics_field(n=[0], S=[0],
         n_order_ind = tuple(n_order_ind.T)
         n_defect_ind = tuple(n_defect_ind.T)
 
-        def make_plot_directors(ind, n_opacity):
+        def make_plot_directors(ind, n_opacity, n_if_color_loop=False):
 
             cord1 = (X[ind])*expand_ratio[0] - n[ind][..., 0]*n_length/2 + origin[0]
             cord2 = (Y[ind])*expand_ratio[1] - n[ind][..., 1]*n_length/2 + origin[1]
@@ -849,43 +859,58 @@ def visualize_nematics_field(n=[0], S=[0],
             nz = n[ind][..., 2]
 
             # examine if directors are colored by function or uniform color
-            try:
-                len(n_color_func)
-                scalars = X[ind]*0
+            if n_if_color_loop == False:
+                try:
+                    len(n_color_func) # if n_color_func is a list, to plot the director with this list
+                    scalars = X[ind]*0
+                    n_color_scalars = False
+                    n_color = n_color_func
+                except:
+                    scalars = n_color_func(n[ind])
+                    n_color_scalars = True
+                    n_color = (1,1,1)
+            else:
                 n_color_scalars = False
-                n_color = n_color_func
-            except:
-                scalars = n_color_func(n[ind])
-                n_color_scalars = True
-                n_color = (1,1,1)
+                scalars = X[ind]*0
+                n_color = nematics_color_immerse(n[ind]) 
+                print("\nWarning! n_if_color_loop is true, it will be much slower")
+                print("\nn_color_func and n_if_colorbar will be ignored ")
 
             # make plot
-            cord1 = cord1.reshape(-1)
-            cord2 = cord2.reshape(-1)
-            cord3 = cord3.reshape(-1)
-            nx = nx.reshape(-1)
-            ny = ny.reshape(-1)
-            nz = nz.reshape(-1)
+            if n_if_color_loop == False:
+                object = mlab.quiver3d(
+                        cord1, cord2, cord3,
+                        nx, ny, nz,
+                        mode=n_shape,
+                        scalars=scalars,
+                        scale_factor=n_length,
+                        opacity=n_opacity,
+                        line_width=n_width,
+                        color=tuple(n_color)
+                        )
+                if n_color_scalars:
+                    object.glyph.color_mode = 'color_by_scalar'
+            else:
+                for i in range(len(nx)):
+                    object = mlab.quiver3d(
+                            cord1[i], cord2[i], cord3[i],
+                            nx[i], ny[i], nz[i],
+                            mode=n_shape,
+                            scale_factor=n_length,
+                            opacity=n_opacity,
+                            line_width=n_width,
+                            color=tuple(n_color[i])
+                            )
 
-            object = mlab.quiver3d(
-                    cord1, cord2, cord3,
-                    nx, ny, nz,
-                    mode=n_shape,
-                    scalars=scalars,
-                    scale_factor=n_length,
-                    opacity=n_opacity,
-                    line_width=n_width,
-                    color=n_color
-                    )
-            if n_color_scalars:
-                object.glyph.color_mode = 'color_by_scalar'
 
             return object, n_color_scalars, scalars
 
-        vector, n_color_scalars, scalars = make_plot_directors(n_order_ind, n_opacity=n_opacity)
+        vector, n_color_scalars, scalars = make_plot_directors(n_order_ind, 
+                                                               n_opacity=n_opacity, n_if_color_loop=n_if_color_loop)
 
         if np.size(n_defect_ind)>1:
-            make_plot_directors(n_defect_ind, n_opacity=defect_n_opacity)
+            make_plot_directors(n_defect_ind, 
+                                n_opacity=defect_n_opacity, n_if_color_loop=n_if_color_loop)
         
         # make colorbar of n
         if n_color_scalars == True:
@@ -907,12 +932,15 @@ def visualize_nematics_field(n=[0], S=[0],
                     if n_color_func==n_color_func_default:
                         n_colorbar_range = (0, 2.6)
                     else:
-                        print('\nWarning: When n_color_func is a function which is not default, and there exists n_colorbar')
+                        print('\nWarning: When n_color_func is not the default function,')
                         print('n_colorbar_range should be \'max\', or set by hand, but not \'default\'.')
                         print('Here n_colorbar_range is automatically turned to be \'max\'.')
                         print('Read the document for more information')
 
                 n_lut_manager.data_range=(n_colorbar_range)
+                if plotS and S_if_colorbar:
+                        print('\nWarning: The colorbars for n and S both exist.')
+                        print('These two colorbars might interfere with each other visually.')
                 
 
         elif n_if_colorbar==True:
