@@ -874,7 +874,7 @@ def visualize_nematics_field(n=[0], S=[0],
                 scalars = X[ind]*0
                 n_color = nematics_color_immerse(n[ind]) 
                 print("\nWarning! n_if_color_loop is true, it will be much slower")
-                print("\nn_color_func and n_if_colorbar will be ignored ")
+                print("n_color_func and n_if_colorbar will be ignored ")
 
             # make plot
             if n_if_color_loop == False:
