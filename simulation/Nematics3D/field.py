@@ -477,9 +477,9 @@ def visualize_nematics_field(n=[0], S=[0],
                 If an int, it represents a sub box in the center of the whole box, where the zoom rate is sub_space.
                 Default is 1, as the whole box is visualized.
 
-     origin : array of three floats, optional
-              Origin of the plot, translating the whole system in real space
-              Default is (0, 0, 0), as the system is not translated 
+    origin : array of three floats, optional
+             Origin of the plot, translating the whole system in real space
+             Default is (0, 0, 0), as the system is not translated 
 
     expand_ratio : float or array of three floats, optional
                    Ratio to stretch or compress the plot along each dimension.
