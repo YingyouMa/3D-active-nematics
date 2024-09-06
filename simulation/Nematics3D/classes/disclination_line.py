@@ -3,10 +3,6 @@ import numpy as np
 from ..disclination import add_mid_points_disclination, calc_coord, get_plane, is_defects_connected, smoothen_line, sort_line_indices
 from .smoothened_line import SmoothenedLine
 
-dict_figure_simplify = {'bgcolor': ('parent.parent.parent.parent.parent.scene', 'background'),
-                        'tube_radius': ('parent.parent.filter', 'radius')
-                        }
-
 
 class DisclinationLine:
     """
@@ -94,15 +90,25 @@ class DisclinationLine:
     @property
     def defect_coord_smooth(self):
         return self.__defect_coord_smooth
+    
+    @property
+    def defect_num(self):
+        return np.shape(self.__defect_indices_full)[0]
 
+    def dict_figure_simplify_generate(self):
+        result = {'bgcolor':        (lambda: self.figure.parent.parent.parent.parent.parent.scene, 'background'),
+                  'tube_radius':    (lambda: self.figure.parent.parent.filter, 'radius'),
+                  'tube_opacity':   (lambda: self.figure.actor.property, 'opacity'),
+                  'tube_sides':     (lambda: self.figure.parent.parent.filter, 'number_of_sides'),
+                  'tube_color':     (lambda: self.figure.actor.actor.property, 'color')
+                        }
+        return result
 
     def figure_init(self,
                     tube_radius=0.25, tube_opacity=0.5, tube_color=(0.5,0.5,0.5), tube_sides=6,
-                    if_norm=False, 
-                    norm_coord=[None,None,None], norm_color=(0,0,1), norm_length=20, 
-                    norm_opacity=0.5, norm_width=1.0, norm_orient=1,
                     is_new=True, bgcolor=(1,1,1)
                     ):
+        #! plot_norm
         '''
 
         '''
@@ -124,55 +130,62 @@ class DisclinationLine:
             figure.parent.parent.parent.parent.parent.scene.background = bgcolor
         
         self.figure = figure
-        
+        self.dict_figure_simplify = {'bgcolor':      (lambda: self.figure.parent.parent.parent.parent.parent.scene, 'background'),
+                                     'tube_radius':  (lambda: self.figure.parent.parent.filter, 'radius'),
+                                     'tube_opacity': (lambda: self.figure.actor.property, 'opacity'),
+                                     'tube_sides':   (lambda: self.figure.parent.parent.filter, 'number_of_sides'),
+                                     'tube_color':   (lambda: self.figure.actor.actor.property, 'color')
+                                             }
+
+    def figure_check_parameter(self, *args):
+        for arg in args:
+            temp = self.dict_figure_simplify.get(arg)
+            obj = temp[0]()
+            attr = temp[1]
+            print(arg + ' : ' + str(getattr(obj,attr)))
 
     def figure_update(self, **kwargs):
-
-        dict_figure_simplify = {'bgcolor': (self.figure.parent.parent.parent.parent.parent.scene, 'background'),
-                                'tube_radius': (self.figure.parent.parent.filter, 'radius')
-                        }
-        
         for attr in kwargs.keys():
-            obj = dict_figure_simplify.get(attr)[0]
-            attr_final = dict_figure_simplify.get(attr)[1]
+            obj = self.dict_figure_simplify.get(attr)[0]()
+            attr_final = self.dict_figure_simplify.get(attr)[1]
             setattr(obj, attr_final, kwargs.get(attr))
         
 
 
 
 
-def plot_loop(
-            loop_coord, 
-            tube_radius=0.25, tube_opacity=0.5, tube_color=(0.5,0.5,0.5), if_add_head=True,
-            if_norm=False, 
-            norm_coord=[None,None,None], norm_color=(0,0,1), norm_length=20, 
-            norm_opacity=0.5, norm_width=1.0, norm_orient=1,
-            print_load_mayavi=False
-            ):
+# def plot_loop(
+#             loop_coord, 
+#             tube_radius=0.25, tube_opacity=0.5, tube_color=(0.5,0.5,0.5), if_add_head=True,
+#             if_norm=False, 
+#             norm_coord=[None,None,None], norm_color=(0,0,1), norm_length=20, 
+#             norm_opacity=0.5, norm_width=1.0, norm_orient=1,
+#             print_load_mayavi=False
+#             ):
 
-    if print_load_mayavi == True:
-        now = time.time()
-        from mayavi import mlab
-        print(f'loading mayavi cost {round(time.time()-now, 2)}s')
-    else:
-        from mayavi import mlab
+#     if print_load_mayavi == True:
+#         now = time.time()
+#         from mayavi import mlab
+#         print(f'loading mayavi cost {round(time.time()-now, 2)}s')
+#     else:
+#         from mayavi import mlab
 
-    if if_add_head==True:
-        loop_coord = np.concatenate([loop_coord, [loop_coord[0]]])
+#     if if_add_head==True:
+#         loop_coord = np.concatenate([loop_coord, [loop_coord[0]]])
 
-    mlab.plot3d(*(loop_coord.T), tube_radius=tube_radius, opacity=tube_opacity, color=tube_color)
+#     mlab.plot3d(*(loop_coord.T), tube_radius=tube_radius, opacity=tube_opacity, color=tube_color)
 
-    if if_norm == True:
-        loop_N = get_plane(loop_coord) * norm_orient
-        loop_center = loop_coord.mean(axis=0)
-        for i, coord in enumerate(norm_coord):
-            if coord != None:
-                loop_center[i] = coord
-        mlab.quiver3d(
-        *(loop_center), *(loop_N),
-        mode='arrow',
-        color=norm_color,
-        scale_factor=norm_length,
-        opacity=norm_opacity,
-        line_width=norm_width
-        ) 
+#     if if_norm == True:
+#         loop_N = get_plane(loop_coord) * norm_orient
+#         loop_center = loop_coord.mean(axis=0)
+#         for i, coord in enumerate(norm_coord):
+#             if coord != None:
+#                 loop_center[i] = coord
+#         mlab.quiver3d(
+#         *(loop_center), *(loop_N),
+#         mode='arrow',
+#         color=norm_color,
+#         scale_factor=norm_length,
+#         opacity=norm_opacity,
+#         line_width=norm_width
+#         ) 

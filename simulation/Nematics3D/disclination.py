@@ -515,7 +515,7 @@ def add_mid_points_disclination(line, is_loop=False):
     '''
 
     if is_loop == True:
-        line = np.concatenate(line, [line[0]])
+        line = np.vstack([line, line[0]])
 
     line_new = np.zeros((2*len(line)-1,3))
     line_new[0::2] = line
@@ -883,7 +883,7 @@ def extract_lines(defect_sorted):
 
     defect_sorted = defect_sorted[:, :4]
 
-    line_start = np.where(defect_sorted[1:,3] - defect_sorted[:-1,3] == 1)[0]
+    line_start = np.array(np.where(defect_sorted[1:,3] - defect_sorted[:-1,3] == 1)[0]) + 1
     line_start = np.concatenate([[0], line_start])
     line_start = np.concatenate([line_start, [np.shape(defect_sorted)[0]]])
 
@@ -914,6 +914,101 @@ def defect_classify_into_lines(defect_indices, box_size, print_time=False, print
     lines = extract_lines(defect_sorted)
 
     return lines
+
+
+def blue_red_in_white_bg():
+    '''
+    Generate a colormap with a transition from blue to red. 
+    The color is normalized to be distinct on white background.
+    Mostly used for visualizing disclination lines
+
+    
+    Returns
+    -------
+    colormap : numpy.ndarray, 511 x 3
+               Array representing the colormap with RGB values.
+
+               
+    Dependencies
+    ------------
+    - numpy: 1.22.0
+    '''
+
+    colormap = np.zeros((511,3))
+    colormap[:256,1] = np.arange(256)
+    colormap[:256,2] = 255 - np.arange(256)
+    colormap[255:,1] = 255 - np.arange(256)
+    colormap[255:,0] = np.arange(256)
+    colormap = colormap / 255
+    colormap = colormap / np.linalg.norm(colormap, axis=-1, keepdims=True)
+
+    return colormap
+
+
+def sample_far(num):
+    '''
+    Generate a sequence of length num, 
+    where each number is trying to be far away from previous numbers.
+    The leading numbers are:
+    0, 1, 1/2, 1/4, 3/4, 1/8, 3/8. 5/8, 7/8, 1/16, 3/16 ...
+
+    
+    Parameters
+    ----------
+    num : int
+          The length of the generated sequence.
+
+          
+    Returns
+    -------
+    result : numpy.ndarray, shape (num,)
+             Array representing the generated sample sequence.
+
+             
+    Dependencies
+    ------------
+    - numpy: 1.22.0
+    '''
+
+    result_init = [0,1]
+    if num <= 2:
+        result = np.array(result_init[:num])
+        return result
+
+    n = np.arange(2, num)
+    a = 2**np.trunc(np.log2(n-1)+1)
+    b = 2*n - a - 1
+
+    result = np.zeros(num)
+
+    result[0] = 0
+    result[1] = 1
+    result[2:] = b/a
+    
+    return result
+
+
+# -----------------------------------------------------
+# Specific functions which are being used in my project
+# -----------------------------------------------------
+
+
+def example_visualize_defects(n, min_length=20, boundary_periodic=(1,1,1)):
+
+    defect_indices = defect_detect(n, boundary_periodic=boundary_periodic)
+    lines = defect_classify_into_lines(defect_indices, np.shape(n)[:3])
+    lines = [line for line in lines if line.defect_num>min_length]
+    lines = sorted(lines, 
+                   key=lambda line: line.defect_num,
+                   reverse=True)
+    color_map = blue_red_in_white_bg()
+    color_map_length = np.shape(color_map)[0] - 1
+    lines_color = color_map[ (sample_far(len(lines))*color_map_length).astype(int)  ]
+
+    for i, line in enumerate(lines):
+        line.update_smoothen()
+        line.figure_init(tube_color=tuple(lines_color[i]), is_new=False)
+
 
 # ---------------------------------------
 # Functions which are not currently used.
@@ -1358,74 +1453,9 @@ def plot_defect(n,
 
 
 
-def blue_red_in_white_bg():
-    '''
-    Generate a colormap with a transition from blue to red. 
-    The color is normalized to be distinct on white background.
 
-    
-    Returns
-    -------
-    colormap : numpy.ndarray, 511 x 3
-               Array representing the colormap with RGB values.
 
-               
-    Dependencies
-    ------------
-    - numpy: 1.22.0
-    '''
 
-    colormap = np.zeros((511,3))
-    colormap[:256,1] = np.arange(256)
-    colormap[:256,2] = 255 - np.arange(256)
-    colormap[255:,1] = 255 - np.arange(256)
-    colormap[255:,0] = np.arange(256)
-    colormap = colormap / 255
-    colormap = colormap / np.linalg.norm(colormap, axis=-1, keepdims=True)
-
-    return colormap
-
-def sample_far(num):
-    '''
-    Generate a sequence of length num, 
-    where each number is trying to be far away from previous numbers.
-    The leading numbers are:
-    0, 1, 1/2, 1/4, 3/4, 1/8, 3/8. 5/8, 7/8, 1/16, 3/16 ...
-
-    
-    Parameters
-    ----------
-    num : int
-          The length of the generated sequence.
-
-          
-    Returns
-    -------
-    result : numpy.ndarray, shape (num,)
-             Array representing the generated sample sequence.
-
-             
-    Dependencies
-    ------------
-    - numpy: 1.22.0
-    '''
-
-    result_init = [0,1]
-    if num <= 2:
-        result = np.array(result_init[:num])
-        return result
-
-    n = np.arange(2, num)
-    a = 2**np.trunc(np.log2(n-1)+1)
-    b = 2*n - a - 1
-
-    result = np.zeros(num)
-
-    result[0] = 0
-    result[1] = 1
-    result[2:] = b/a
-    
-    return result
 
 def visual_disclinations(lines, N, N_index=1, min_length=30, radius=0.5,
                          window_cross=33, window_loop=21,
