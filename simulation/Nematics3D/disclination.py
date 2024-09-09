@@ -7,8 +7,10 @@ import time
 # Not general means the code is specifically for my project.
 # ----------------------------------------------------------
 
+from .general import *
 
-def defect_detect(n_origin, threshold=0, boundary_periodic=0, planes=[0,1,2], print_time=False):
+
+def defect_detect(n_origin, threshold=0, boundary_periodic=0, planes=[1,1,1], print_time=False, return_test=False):
     #! Introduce the format of defect_indices
     #! Change the radius if needed
     #! defect_indices half integer
@@ -36,15 +38,19 @@ def defect_detect(n_origin, threshold=0, boundary_periodic=0, planes=[0,1,2], pr
 
     planes : array, optional
              Indicate the direction of planes whose defects are about to be found.
-             0, 1, 2 stands for x-plane, y-plane, z-plane, seperately.
-             For example, if planes=[0], it will only find defects on seperate x-planes,
+             Each index stands for x-plane, y-plane, z-plane, seperately.
+             For example, if planes=[1,0,0], it will only find defects on seperate x-planes,
              or in other words, it will NOT calculate the winding number along x-direction.
-             Default is [0,1,2], to analyze all directions
-
+             Default is [1,1,1], to analyze all directions
 
     print_time : bool, optional
                  Flag to print the time taken for each direction. 
                  Default is False.
+
+    return_test : bool, optional
+                  Flag to return the test result of each grid point.
+                  Test result is the inner product between the beginning and end director of small loop.
+                  Default is False.
 
     Returns
     -------
@@ -62,32 +68,21 @@ def defect_detect(n_origin, threshold=0, boundary_periodic=0, planes=[0,1,2], pr
     ---------
     '''
 
-    if len(np.shape([boundary_periodic])) == 1:
-        boundary_periodic = np.array([boundary_periodic, boundary_periodic, boundary_periodic])
+    boundary_periodic = array_from_single_or_list(boundary_periodic)
+
+    from .field import add_periodic_boundary
 
     # Consider the periodic boundary condition
-    if np.sum(boundary_periodic) == 0:
-        n = n_origin
-    else:
-        N, M, L = np.shape(n_origin)[:-1]
-        n = np.zeros((N+boundary_periodic[0],
-                      M+boundary_periodic[1],
-                      L+boundary_periodic[2],
-                      3))
-        n[:N, :M, :L] = n_origin
-        if boundary_periodic[0] == True:
-            n[N] = n[0]
-        if boundary_periodic[1] == True:
-            n[:, M] = n[:, 0]
-        if boundary_periodic[2] == True:
-            n[:,:,L] = n[:,:,0]  
+    n = add_periodic_boundary(n_origin, boundary_periodic=boundary_periodic)
 
     now = time.time()
 
     defect_indices = np.empty((0,3), float)
+    test_result = np.empty((0,), float)
+    test_result_all = np.empty((0,), float)
 
     # X-direction
-    if 0 in planes:
+    if planes[0]:
         here = n[:, 1:, :-1]
         if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:, :-1, :-1], here))
         here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:, 1:, :-1])
@@ -95,16 +90,18 @@ def defect_detect(n_origin, threshold=0, boundary_periodic=0, planes=[0,1,2], pr
         here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:, 1:, 1:])
         if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:, :-1, 1:], here))
         here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:, :-1, 1:])
-        test = np.einsum('lmni, lmni -> lmn', n[:, :-1, :-1], here)
-        temp = np.array(np.where(test<threshold)).transpose().astype(float)
+        testx = np.einsum('lmni, lmni -> lmn', n[:, :-1, :-1], here)
+        temp = np.array(np.where(testx<threshold)).transpose().astype(float)
         temp[:,1:] = temp[:,1:]+0.5
         defect_indices = np.concatenate([ defect_indices, temp ])
+        test_result = np.concatenate([test_result, testx[testx<threshold]])
+        test_result_all = np.concatenate([test_result_all, testx.reshape(-1)])
         if print_time:
             print('finish x-direction, with', str(round(time.time()-now,2))+'s')
         now = time.time()
 
     # Y-direction
-    if 1 in planes:
+    if planes[1]:
         here = n[1:, :, :-1]
         if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:-1,:, :-1], here))
         here = np.einsum('lmn, lmni -> lmni',if_parallel, n[1:, :, :-1])
@@ -112,16 +109,18 @@ def defect_detect(n_origin, threshold=0, boundary_periodic=0, planes=[0,1,2], pr
         here = np.einsum('lmn, lmni -> lmni',if_parallel, n[1:, :, 1:])
         if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:-1, :, 1:], here))
         here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:-1, :, 1:])
-        test = np.einsum('lmni, lmni -> lmn', n[:-1, :, :-1], here)
-        temp = np.array(np.where(test<threshold)).transpose().astype(float)
+        testy = np.einsum('lmni, lmni -> lmn', n[:-1, :, :-1], here)
+        temp = np.array(np.where(testy<threshold)).transpose().astype(float)
         temp[:, [0,2]] = temp[:, [0,2]]+0.5
         defect_indices = np.concatenate([ defect_indices, temp ])
+        test_result = np.concatenate([test_result, testy[testy<threshold]])
+        test_result_all = np.concatenate([test_result_all, testy.reshape(-1)])
         if print_time:
             print('finish y-direction, with', str(round(time.time()-now,2))+'s')
         now = time.time()
 
     # Z-direction
-    if 2 in planes:
+    if planes[2]:
         here = n[1:, :-1]
         if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:-1, :-1], here))
         here = np.einsum('lmn, lmni -> lmni',if_parallel, n[1:, :-1])
@@ -129,10 +128,12 @@ def defect_detect(n_origin, threshold=0, boundary_periodic=0, planes=[0,1,2], pr
         here = np.einsum('lmn, lmni -> lmni',if_parallel, n[1:, 1:])
         if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:-1, 1:], here))
         here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:-1, 1:])
-        test = np.einsum('lmni, lmni -> lmn', n[:-1, :-1], here)
-        temp = np.array(np.where(test<threshold)).transpose().astype(float)
+        testz = np.einsum('lmni, lmni -> lmn', n[:-1, :-1], here)
+        temp = np.array(np.where(testz<threshold)).transpose().astype(float)
         temp[:, :-1] = temp[:, :-1]+0.5
         defect_indices = np.concatenate([ defect_indices, temp ])
+        test_result = np.concatenate([test_result, testz[testz<threshold]])
+        test_result_all = np.concatenate([test_result_all, testz.reshape(-1)])
         if print_time:
             print('finish z-direction, with', str(round(time.time()-now,2))+'s')
         now = time.time()
@@ -141,9 +142,73 @@ def defect_detect(n_origin, threshold=0, boundary_periodic=0, planes=[0,1,2], pr
     for i, if_periodic in enumerate(boundary_periodic):
         if if_periodic == True:
             defect_indices[:,i] = defect_indices[:,i] % np.shape(n_origin)[i]
-    defect_indices = np.unique(defect_indices, axis=0)
+    defect_indices, unique = np.unique(defect_indices, axis=0, return_index=True)
+    test_result = test_result[unique]
 
-    return defect_indices
+    if return_test:
+        return defect_indices, test_result, test_result_all
+    else:
+        return defect_indices
+
+
+def defect_detect_precise(n_origin, S=0, threshold1=0.3, threshold2=-0.2, boundary_periodic=0, planes=[1,1,1],
+                          num_add=3):
+    
+    from scipy.interpolate import interpn
+    from .field import interpolateQ, diagonalizeQ
+    
+    num = num_add + 2
+    length = 4 * num - 4
+    
+    defect_indices = defect_detect(n_origin, threshold=threshold1, boundary_periodic=boundary_periodic, planes=planes)
+
+    defectx = defect_indices[np.isclose(defect_indices[:, 0], np.round(defect_indices[:, 0]))]
+    defecty = defect_indices[np.isclose(defect_indices[:, 1], np.round(defect_indices[:, 1]))]
+    defectz = defect_indices[np.isclose(defect_indices[:, 2], np.round(defect_indices[:, 2]))]
+
+    squarex = get_square(1, num, dim=3)
+    squarey = squarex.copy()
+    squarey[:, [0, 1]] = squarey[:, [1, 0]]
+    squarez = squarex.copy()
+    squarez[:, [0, 1]] = squarez[:, [1, 0]]
+    squarez[:, [1, 2]] = squarez[:, [2, 1]]
+
+    defectx = defectx - np.broadcast_to([0.0, 0.5, 0.5],(np.shape(defectx)[0],3))
+    defecty = defecty - np.broadcast_to([0.5, 0.0, 0.5],(np.shape(defecty)[0],3))
+    defectz = defectz - np.broadcast_to([0.5, 0.5, 0.0],(np.shape(defectz)[0],3))
+
+    defectx = np.repeat(defectx, length, axis=0).reshape(np.shape(defectx)[0],length,3)
+    defecty = np.repeat(defecty, length, axis=0).reshape(np.shape(defecty)[0],length,3)
+    defectz = np.repeat(defectz, length, axis=0).reshape(np.shape(defectz)[0],length,3)
+
+    defectx =  defectx + np.broadcast_to(squarex, (np.shape(defectx)[0], length,3))
+    defecty =  defecty + np.broadcast_to(squarey, (np.shape(defecty)[0], length,3))
+    defectz =  defectz + np.broadcast_to(squarez, (np.shape(defectz)[0], length,3))
+
+    Q_around_x = interpolateQ(n_origin, defectx,  S=S, boundary_periodic=boundary_periodic)
+    Q_around_y = interpolateQ(n_origin, defecty,  S=S, boundary_periodic=boundary_periodic)
+    Q_around_z = interpolateQ(n_origin, defectz,  S=S, boundary_periodic=boundary_periodic)
+    
+    n_around_x = diagonalizeQ(Q_around_x)[1]
+    n_around_y = diagonalizeQ(Q_around_y)[1]
+    n_around_z = diagonalizeQ(Q_around_z)[1]
+
+    same_orient_x = np.sign(np.einsum( 'abi, abi -> ab', n_around_x[:, 1:], n_around_x[:, :-1] ))
+    same_orient_x = np.cumprod( same_orient_x, axis=-1)[:,-1]
+    final_product_x = np.einsum( 'a, ai, ai -> a', same_orient_x, n_around_x[:,0], n_around_x[:,-1] )
+
+    same_orient_y = np.sign(np.einsum( 'abi, abi -> ab', n_around_y[:, 1:], n_around_y[:, :-1] ))
+    same_orient_y = np.cumprod( same_orient_y, axis=-1)[:,-1]
+    final_product_y = np.einsum( 'a, ai, ai -> a', same_orient_y, n_around_y[:,0], n_around_y[:,-1] )
+
+    same_orient_z = np.sign(np.einsum( 'abi, abi -> ab', n_around_z[:, 1:], n_around_z[:, :-1] ))
+    same_orient_z = np.cumprod( same_orient_z, axis=-1)[:,-1]
+    final_product_z = np.einsum( 'a, ai, ai -> a', same_orient_z, n_around_z[:,0], n_around_z[:,-1] )
+
+    # return final_product_x, final_product_y, final_product_z
+    return np.concatenate([final_product_x, final_product_y, final_product_z])
+
+
 
 
 def calc_coord(defect_indices, origin=(0,0,0), space_index_ratio=1):
@@ -265,139 +330,7 @@ def find_defect_n(defect_indices, size=0):
     return defect_n
 
 
-def sort_line_indices(coords):
-    '''
-    Sort the indices of defects within a line based on their nearest neighbor order.
 
-    Parameters
-    ----------
-    coords : array_like, (N, M)
-             Array representing a line. It contains the indices of all the defects composing the loop. 
-             N is the number of points, and M is the dimension (usually 2 or 3).
-
-    Returns
-    -------
-    output : numpy.ndarray, (N, M)
-             Array representing the sorted indices of the line based on nearest neighbor order.
-             N is the number of points, and M is the dimension (usually 2 or 3).
-
-    Dependencies
-    ------------
-    - NumPy: 1.22.0
-    - nearest_neighbor_order(): Function for determining nearest neighbor order in the same module.
-    '''
-
-    output = coords[nearest_neighbor_order(coords)]
-    return output
-
-
-def nearest_neighbor_order(points):
-    '''
-    Determine the nearest neighbor order of points.
-
-    Parameters
-    ----------
-    points : array_like, (N, M)
-             Array containing the coordinates of the points.
-             N is the number of points, and M is the dimension (usually 2 or 3).
-
-    Returns
-    -------
-    order : list
-            List representing the nearest neighbor order of the points.
-
-    Dependencies
-    ------------
-    - NumPy: 1.22.0
-    - SciPy: 1.7.3
-    '''
-    from scipy.spatial.distance import cdist
-
-    num_points = len(points)
-
-    # Calculate the pairwise distance matrix
-    dist = cdist(points, points) 
-
-    # Initialize variables for tracking visited points and the order
-    visited = np.zeros(num_points, dtype=bool)
-    visited[0] = True
-    order = [0]  
-
-    # Determine nearest neighbors iteratively
-    for i in range(num_points - 1):
-        current_point = order[-1]
-        nearest_neighbor = np.argmin(dist[current_point, :] + visited * np.max(dist))
-        order.append(nearest_neighbor)
-        visited[nearest_neighbor] = True
-
-    return order
-
-
-def smoothen_line(line_coord, window_ratio=3, window_length=None, order=3, N_out_ratio=3, mode='interp'):
-    '''
-    Smoothen a line represented by coordinates using Savitzky-Golay filtering
-    and cubic spline interpolation. Usually used for smoothening disclination lines.
-
-    Parameters
-    ----------
-    line_coord : array_like, N x M
-                 array containing the coordinates of the original line.
-                 N is the number of coordinates, and M is the dimension.
-    
-    window_ratio : int, optional
-                   Ratio to compute the Savitzky-Golay filter window length. 
-                   window_length = number of coordinates (N) / window_ratio.
-                   Default is 3.
-
-    window_length: int, odd
-                   If window_length is set directly, window_ratio would be ignored.
-                   Default is None.
-
-    order : int, optional
-            Order of the Savitzky-Golay filter. 
-            Default is 3.
-
-    N_out_ratio : float, optional
-                  Number of points in the output smoothened line compared to the original number of points. 
-                  Default is 3.
-
-    mode : str, optional
-           Mode of extension for the Savitzky-Golay filter (usually 'interp' or 'wrap'). 
-           Extension: Pad the signal with extension.
-           Default is 'interp', with no extension.
-           If 'wrap', the extension contains the values from the other end of the array.
-           To smoothen loops (not crossing lines), "wrap' must be used.
-
-    Returns
-    -------
-    output : numpy.ndarray, (N_out, M)
-             Array representing the smoothened line coordinates. 
-             N_out is the number of points in the smoothened line, and M is the dimension.
-
-    Dependencies
-    ------------
-    - scipy: 1.7.3
-    - numpy: 1.22.0   
-    '''
-
-    # Calculate the window_length for the Savitzky-Golay filter
-    # For some version of scipy, window_length must be odd
-    if window_length == None:
-        window_length = int(len(line_coord)/window_ratio/2)*2 + 1
-
-    # Apply Savitzky-Golay filter to smoothen the line
-    from scipy.signal import savgol_filter
-    line_points = savgol_filter(line_coord, window_length, order, axis=0, mode=mode)
-
-    # Generate the parameter values for cubic spline interpolation
-    uspline = np.arange(len(line_coord))/len(line_coord)
-
-    # Use cubic spline interpolation to obtain new coordinates
-    from scipy.interpolate import splprep, splev
-    tck = splprep(line_points.T, u=uspline, s=0)[0]
-    output = np.array(splev(np.linspace(0,1,int(len(line_coord)*N_out_ratio)), tck)).T
-
-    return output
 
 
 def is_defects_connected(defect1, defect2):
@@ -443,42 +376,6 @@ def is_defects_connected(defect1, defect2):
             result = True
     
     return result
-
-
-def get_plane(points):
-    #! how good are points lying in a plane
-    '''
-    Calculate the normal vector of the best-fit plane to a set of 3D points 
-    using Singular Value Decomposition (SVD).
-
-    Parameters
-    ----------
-    points : numpy.ndarray, N x 3
-             Array containing the 3D coordinates of the points.
-             N is the number of points.
-
-    Returns
-    -------
-    normal_vector : numpy.ndarray, 3
-                    Array representing the normal vector of the best-fit plane.
-
-    Dependencies
-    ------------
-    - numpy: 1.22.0   
-    '''
-    # Calculate the center of the points
-    center    = points.mean(axis=0)
-
-    # Translate the points to be relative to the center
-    relative  = points - np.tile(center, (np.shape(points)[0],1))
-
-    # Perform Singular Value Decomposition (SVD) on the transposed relative points
-    svd  = np.linalg.svd(relative.T)
-
-    # Extract the left singular vector corresponding to the smallest singular value
-    normal_vector = svd[0][:, -1]
-
-    return normal_vector
 
 
 def add_mid_points_disclination(line, is_loop=False):
@@ -546,7 +443,7 @@ def defect_classify_into_lines_init(defect_indices, box_size, print_time=False, 
                      For each location, there must be one integer (the index of plane) and two half-integers (the center of the loop on that plane)
                      This is usually given by defect_detect()
 
-    box_size : float or numpy of three floats, optional
+    box_size : float or numpy of three floats
                The largest index of the entire box in each dimension.
                Used for periodic boundary condition and sub-box-division for acceleration.
                If box_size is one integer as x, it is interprepted as (x,x,x).
@@ -858,10 +755,10 @@ def defect_classify_into_lines_init(defect_indices, box_size, print_time=False, 
                     defect_left_num += len(term)
                 break
     
-    return defect_sorted
+    return defect_sorted, box_size
 
 
-def extract_lines(defect_sorted):
+def extract_lines(defect_sorted, box_size, is_add_mid=True):
     '''
     Extract the disclination lines into several instancies of class Disclination_line
 
@@ -890,7 +787,9 @@ def extract_lines(defect_sorted):
     line_num = int(defect_sorted[-1, 3] + 1)
     lines = []
     for i in range(line_num):
-        lines.append(DisclinationLine(defect_sorted[ line_start[i]:line_start[i+1] , :3]))
+        lines.append(DisclinationLine(defect_sorted[ line_start[i]:line_start[i+1] , :3],
+                                      box_size,
+                                      is_add_mid=is_add_mid))
 
     return lines
 
@@ -909,9 +808,9 @@ def defect_classify_into_lines(defect_indices, box_size, print_time=False, print
             The list of all the lines.
             Each line is an instance of Disclination_line.
     '''
-    defect_sorted = defect_classify_into_lines_init(defect_indices, box_size, 
-                                                    print_time=print_time, print_per=print_per)
-    lines = extract_lines(defect_sorted)
+    defect_sorted, box_size = defect_classify_into_lines_init(defect_indices, box_size, 
+                                                              print_time=print_time, print_per=print_per)
+    lines = extract_lines(defect_sorted, box_size)
 
     return lines
 
@@ -993,21 +892,30 @@ def sample_far(num):
 # -----------------------------------------------------
 
 
-def example_visualize_defects(n, min_length=20, boundary_periodic=(1,1,1)):
+@time_record
+def example_visualize_defects(n, 
+                              min_length=30, boundary_periodic=(1,1,1), 
+                              cross_window_length=20, loop_window_length=5):
 
     defect_indices = defect_detect(n, boundary_periodic=boundary_periodic)
     lines = defect_classify_into_lines(defect_indices, np.shape(n)[:3])
     lines = [line for line in lines if line.defect_num>min_length]
-    lines = sorted(lines, 
-                   key=lambda line: line.defect_num,
-                   reverse=True)
+    loops = [line for line in lines if line.is_loop]
+    crosses = [line for line in lines if not line.is_loop]
+    crosses = sorted(crosses, 
+                     key=lambda line: line.defect_num,
+                     reverse=True)
     color_map = blue_red_in_white_bg()
     color_map_length = np.shape(color_map)[0] - 1
-    lines_color = color_map[ (sample_far(len(lines))*color_map_length).astype(int)  ]
+    crosses_color = color_map[ (sample_far(len(crosses))*color_map_length).astype(int)  ]
 
-    for i, line in enumerate(lines):
-        line.update_smoothen()
-        line.figure_init(tube_color=tuple(lines_color[i]), is_new=False)
+    for i, cross in enumerate(crosses):
+        cross.update_smoothen(window_length=cross_window_length)
+        cross.figure_init(tube_color=tuple(crosses_color[i]), is_new=False)
+
+    for i, loop in enumerate(loops):
+        loop.update_smoothen(window_length=loop_window_length) 
+        loop.figure_init(tube_color=tuple(crosses_color[i]), is_new=False, color=(0,0,0))
 
 
 # ---------------------------------------

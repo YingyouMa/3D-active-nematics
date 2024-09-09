@@ -8,10 +8,27 @@ import time
 
 import numpy as np
 
+from .general import *
 
-# --------------------------------------------------------
-# Diagonalization of Q tensor in 3D nematics.
-# --------------------------------------------------------
+
+def add_periodic_boundary(data, boundary_periodic=0):
+
+    if np.sum(boundary_periodic) != 0:
+        N, M, L = np.shape(data)[:3]
+        output = np.zeros( (N+boundary_periodic[0],
+                            M+boundary_periodic[1],
+                            L+boundary_periodic[2],
+                            *(np.shape(data)[3:]) ))
+        output[:N, :M, :L] = data
+        if boundary_periodic[0] == True:
+            output[N] = output[0]
+        if boundary_periodic[1] == True:
+            output[:, M] = output[:, 0]
+        if boundary_periodic[2] == True:
+            output[:,:,L] = output[:,:,0] 
+
+    return output
+
 
 def diagonalizeQ(qtensor):
     #! biaxial as option
@@ -24,9 +41,8 @@ def diagonalizeQ(qtensor):
 
     Parameters
     ----------
-    qtensor : numpy array, N x M x L x 5  or  N x M x L x 3x 3
-              tensor order parameter Q of each grid
-              N, M and L are the number of grids in each dimension.
+    qtensor : numpy array, (..., 5)  or (..., 3, 3)
+              tensor order parameter Q of each grid.
               The Q tensor for each grid could be represented by 5 numbers or 3 x 3 = 9 numbers
               If 5, then qtensor[..., 0] = Q_xx, qtensor[..., 1] = Q_xy, and so on. 
               If 3 x 3, then qtensor[..., 0,0] = Q_xx, qtensor[..., 0,1] = Q_xy, and so on.
@@ -34,10 +50,10 @@ def diagonalizeQ(qtensor):
 
     Returns
     -------
-    S : numpy array, N x M x L
+    S : numpy array, (...). For example, if the shape of input is (20,30,40,50,5), then the shape of S here is (20,30,40,50)
         the biggest eigenvalue as the scalar order parameter of each grid
 
-    n : numpy array, N x M x L x 3
+    n : numpy array, (..., 3)
         the eigenvector corresponding to the biggest eigenvalue, as the director, of each grid.
 
 
@@ -47,12 +63,10 @@ def diagonalizeQ(qtensor):
 
     """
 
-    N, M, L = np.shape(qtensor)[:3]
-
-    if np.shape(qtensor) == (N, M, L, 3, 3):
+    if np.all( np.shape(qtensor)[-2:] == np.array([3,3]) ):
         Q = qtensor
-    elif np.shape(qtensor) == (N, M, L, 5):
-        Q = np.zeros( (N, M, L, 3, 3)  )
+    elif np.shape(qtensor)[-1] == 5:
+        Q = np.zeros( (*(np.shape(qtensor)[:-1]), 3, 3)  )
         Q[..., 0,0] = qtensor[..., 0]
         Q[..., 0,1] = qtensor[..., 1]
         Q[..., 0,2] = qtensor[..., 2]
@@ -64,10 +78,10 @@ def diagonalizeQ(qtensor):
         Q[..., 2,2] = - Q[..., 0,0] - Q[..., 1,1]
     else:
         raise NameError(
-            "The dimension of qtensor would be (N, M, L, 3, 3) or (N, M, L, 5)"
+            "The dimension of qtensor would be (..., 3, 3) or (..., L, 5)"
             )
 
-    p = 0.5 * np.einsum('ijkab, ijkba -> ijk', Q, Q)
+    p = 0.5 * np.einsum('...ab, ...ba -> ...', Q, Q)
     q = np.linalg.det(Q)
     r = 2 * np.sqrt( p / 3 )
 
@@ -82,18 +96,56 @@ def diagonalizeQ(qtensor):
         Q[..., 0,1]**2 - ( Q[..., 0,0] - S ) * ( Q[..., 1,1] - S  )
         ] )
     n = temp / np.linalg.norm(temp, axis = 0)
-    n = n.transpose((1,2,3,0))
+    
+    n = n.transpose((
+                    *(np.arange(1, len(np.shape(n)), 1))
+                    ,0))
     S = S * 1.5
 
     return S, n
 
-def interpolateQ(n, add_point, S=[0]):
+
+def getQ(n, S=0, boundary_periodic=0):
+
+    Q = np.einsum('...i, ...j -> ...ij', n, n)
+    Q = Q - np.diag((1,1,1))/3
+    if not isinstance(S, int):
+        Q = np.einsum('..., ...ij -> ...ij', S, Q)
+
+    Q = add_periodic_boundary(Q, boundary_periodic=boundary_periodic) 
+    
+    return Q
+
+
+@time_record
+def interpolateQ(n, result_points, S=0, boundary_periodic=0):
 
     from scipy.interpolate import interpn
 
-    if len(np.shape([add_point])) == 1:
-        add_point = np.array( [add_point]*3 )
+    init_Q = getQ(n, S=S, boundary_periodic=boundary_periodic)
 
+    init_shape = np.array(np.shape(init_Q)[:3])
+    init_points = (
+        np.arange(init_shape[0]),
+        np.arange(init_shape[1]),
+        np.arange(init_shape[2])
+        )
+
+    result_Q = np.zeros((*(np.shape(result_points)[:-1]),5))
+    result_Q[..., 0] = interpn(init_points, init_Q[..., 0, 0], result_points)
+    result_Q[..., 1] = interpn(init_points, init_Q[..., 0, 1], result_points)
+    result_Q[..., 2] = interpn(init_points, init_Q[..., 0, 2], result_points)
+    result_Q[..., 3] = interpn(init_points, init_Q[..., 1, 1], result_points)
+    result_Q[..., 4] = interpn(init_points, init_Q[..., 1, 2], result_points)
+
+    return result_Q
+
+
+def interpolateQ_all(n, add_point, S=0):
+
+    from scipy.interpolate import interpn
+
+    add_point = array_from_single_or_list(add_point) 
     init_shape = np.array(np.shape(n)[:3])
     result_shape = (init_shape-1) * (add_point+1) + 1
 
@@ -104,25 +156,9 @@ def interpolateQ(n, add_point, S=[0]):
         )))
     result_points = result_points.reshape((*result_shape,3))
 
-    init_points = (
-        np.arange(init_shape[0]),
-        np.arange(init_shape[1]),
-        np.arange(init_shape[2])
-        )
+    result_Q = interpolateQ(n, S=S)
 
-    init_Q = np.einsum('abci, abcj -> abcij', n, n)
-    init_Q = init_Q - np.diag((1,1,1))/3
-    if np.size(S) != 1:
-        init_Q = np.einsum('abc, abcij -> abcij', S, init_Q)
-
-    result_Q = np.zeros((*result_shape, 5))
-    result_Q[..., 0] = interpn(init_points, init_Q[..., 0, 0], result_points)
-    result_Q[..., 1] = interpn(init_points, init_Q[..., 0, 1], result_points)
-    result_Q[..., 2] = interpn(init_points, init_Q[..., 0, 2], result_points)
-    result_Q[..., 3] = interpn(init_points, init_Q[..., 1, 1], result_points)
-    result_Q[..., 4] = interpn(init_points, init_Q[..., 1, 2], result_points)
-
-    return result_Q
+    return result_Q 
 
 
 def subbox_slices(min_vertex, max_vertex, 

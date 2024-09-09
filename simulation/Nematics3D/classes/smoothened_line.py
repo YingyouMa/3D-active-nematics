@@ -53,52 +53,45 @@ class SmoothenedLine:
                  window_ratio=3, window_length=None, order=3, N_out_ratio=3, mode='interp',
                  is_keep_origin=True):
         
-        self.__order = order
-        self.__N_out_ratio = N_out_ratio
-        self.__mode = mode
-        self.__N_init = len(line_coord)
+        self._order = order
+        self._N_out_ratio = N_out_ratio
+        self._mode = mode
+        self._N_init = len(line_coord)
 
         if window_length == None:
-            self.__window_length = int( self.__N_init / window_ratio / 2 )*2 + 1
-            self.__window_ratio = self.__window_length / self.__N_init
+            self._window_length = int( self._N_init / window_ratio / 2 )*2 + 1
+            self._window_ratio = self._N_init / self._window_length 
         else:
-            self.__window_length = window_length
-            self.__window_ratio = self.__window_length / self.__N_init
+            self._window_length = window_length
+            self._window_ratio = self._N_init / self._window_length
 
-        self.__N_out = int(self.__N_init * N_out_ratio)
+        self._N_out = int(self._N_init * N_out_ratio)
 
         
         if is_keep_origin:
-            self.__input = line_coord
+            self._input = line_coord
         else:
-            self.__input = None
+            self._input = None
 
         # Apply Savitzky-Golay filter to smoothen the line
         from scipy.signal import savgol_filter
-        line_points = savgol_filter(line_coord, self.__window_length, order, axis=0, mode=mode)
+        line_points = savgol_filter(line_coord, self._window_length, order, axis=0, mode=mode)
 
         # Generate the parameter values for cubic spline interpolation
-        uspline = np.arange(self.__N_init) / self.__N_init
+        uspline = np.arange(self._N_init) / self._N_init
 
         # Use cubic spline interpolation to obtain new coordinates
         from scipy.interpolate import splprep, splev
         tck = splprep(line_points.T, u=uspline, s=0)[0]
-        self.__output = np.array(splev(np.linspace(0,1,self.__N_out), tck)).T
+        self._output = np.array(splev(np.linspace(0,1,self._N_out), tck)).T
 
     def print_parameters(self):
-        print(f'filter order: {self.__order}')
-        print(f'filter mode: {self.__mode}')
-        print(f'ratio between length of output and input: {self.__N_out_ratio}')
-        print(f'length of output: {self.__N_out}')
-        print(f'length of input: {self.__N_init}')
-        print(f'window length: {self.__window_length}')
-        print(f'ratio between window length and length of input: {self.__window_ratio}')
+        print(f'filter order: {self._order}')
+        print(f'filter mode: {self._mode}')
+        print(f'ratio between length of output and input: {self._N_out_ratio}')
+        print(f'length of output: {self._N_out}')
+        print(f'length of input: {self._N_init}')
+        print(f'window length: {self._window_length}')
+        print(f'ratio between length of input and window length: {self._window_ratio}')
 
-    @property
-    def output(self):
-        return(self.__output)
-    
-    @property
-    def input(self):
-        return(self.__input)
 
