@@ -149,12 +149,82 @@ def defect_detect(n_origin, threshold=0, boundary_periodic=0, planes=[1,1,1], pr
         return defect_indices, test_result, test_result_all
     else:
         return defect_indices
-
-
-def defect_detect_precise(n_origin, S=0, threshold1=0.3, threshold2=-0.2, boundary_periodic=0, planes=[1,1,1],
-                          num_add=3):
     
-    from scipy.interpolate import interpn
+
+def defect_find_vicinity_grid(defect_indices, num_add=3):
+
+    num = num_add + 2
+    length = 4 * num - 4
+
+    result = np.zeros( (np.shape(defect_indices)[0], length, 3) )
+
+    indexx = np.isclose(defect_indices[:, 0], np.round(defect_indices[:, 0]))
+    indexy = np.isclose(defect_indices[:, 1], np.round(defect_indices[:, 1]))
+    indexz = np.isclose(defect_indices[:, 2], np.round(defect_indices[:, 2]))
+
+    defectx = defect_indices[indexx]
+    defecty = defect_indices[indexy]
+    defectz = defect_indices[indexz]
+
+    squarex = get_square(1, num, dim=3)
+    squarey = squarex.copy()
+    squarey[:, [0, 1]] = squarey[:, [1, 0]]
+    squarez = squarex.copy()
+    squarez[:, [0, 1]] = squarez[:, [1, 0]]
+    squarez[:, [1, 2]] = squarez[:, [2, 1]]
+
+    defectx = defectx - np.broadcast_to([0.0, 0.5, 0.5],(np.shape(defectx)[0],3))
+    defecty = defecty - np.broadcast_to([0.5, 0.0, 0.5],(np.shape(defecty)[0],3))
+    defectz = defectz - np.broadcast_to([0.5, 0.5, 0.0],(np.shape(defectz)[0],3))
+
+    defectx = np.repeat(defectx, length, axis=0).reshape(np.shape(defectx)[0],length,3)
+    defecty = np.repeat(defecty, length, axis=0).reshape(np.shape(defecty)[0],length,3)
+    defectz = np.repeat(defectz, length, axis=0).reshape(np.shape(defectz)[0],length,3)
+
+    defectx =  defectx + np.broadcast_to(squarex, (np.shape(defectx)[0], length,3))
+    defecty =  defecty + np.broadcast_to(squarey, (np.shape(defecty)[0], length,3))
+    defectz =  defectz + np.broadcast_to(squarez, (np.shape(defectz)[0], length,3))
+
+    result[indexx] = defectx
+    result[indexy] = defecty
+    result[indexz] = defectz
+
+    return result
+
+
+def defect_find_vicinity_Q(defect_indices, n, S=0, num_add=3, boundary_periodic=0):
+
+    from .field import interpolateQ
+
+    defect_vicinity_grid = defect_find_vicinity_grid(defect_indices, num_add=num_add)
+    defect_vicinity_Q = interpolateQ(n, defect_vicinity_grid, S=S, boundary_periodic=boundary_periodic)
+
+    return defect_vicinity_Q
+
+
+def defect_vicinity_analysis(defect_indices, n, S=0, num_add=3, boundary_periodic=0):
+
+    from .field import diagonalizeQ
+
+    defect_vicinity_Q = defect_find_vicinity_Q(defect_indices, n, 
+                                               S=S, num_add=num_add, boundary_periodic=boundary_periodic)
+    defect_vicinity_n = diagonalizeQ(defect_vicinity_Q)[1]
+
+    same_orient = np.sign(np.einsum( 'abi, abi -> ab', defect_vicinity_n[:, 1:], defect_vicinity_n[:, :-1] ))
+    same_orient = np.cumprod( same_orient, axis=-1)[:,-1]
+    final_product = np.einsum( 'a, ai, ai -> a', same_orient, defect_vicinity_n[:,0], defect_vicinity_n[:,-1] )
+
+    return final_product
+
+
+
+
+
+
+def defect_detect_precise(n_origin, S=0,
+                          threshold1=0.5, threshold2=-0.9, boundary_periodic=0, planes=[1,1,1], num_add=3,
+                          return_test=False):
+    
     from .field import interpolateQ, diagonalizeQ
     
     num = num_add + 2
@@ -162,9 +232,13 @@ def defect_detect_precise(n_origin, S=0, threshold1=0.3, threshold2=-0.2, bounda
     
     defect_indices = defect_detect(n_origin, threshold=threshold1, boundary_periodic=boundary_periodic, planes=planes)
 
-    defectx = defect_indices[np.isclose(defect_indices[:, 0], np.round(defect_indices[:, 0]))]
-    defecty = defect_indices[np.isclose(defect_indices[:, 1], np.round(defect_indices[:, 1]))]
-    defectz = defect_indices[np.isclose(defect_indices[:, 2], np.round(defect_indices[:, 2]))]
+    indexx = np.isclose(defect_indices[:, 0], np.round(defect_indices[:, 0]))
+    indexy = np.isclose(defect_indices[:, 1], np.round(defect_indices[:, 1]))
+    indexz = np.isclose(defect_indices[:, 2], np.round(defect_indices[:, 2]))
+
+    defectx = defect_indices[indexx]
+    defecty = defect_indices[indexy]
+    defectz = defect_indices[indexz]
 
     squarex = get_square(1, num, dim=3)
     squarey = squarex.copy()
@@ -205,8 +279,20 @@ def defect_detect_precise(n_origin, S=0, threshold1=0.3, threshold2=-0.2, bounda
     same_orient_z = np.cumprod( same_orient_z, axis=-1)[:,-1]
     final_product_z = np.einsum( 'a, ai, ai -> a', same_orient_z, n_around_z[:,0], n_around_z[:,-1] )
 
-    # return final_product_x, final_product_y, final_product_z
-    return np.concatenate([final_product_x, final_product_y, final_product_z])
+    defectx = defect_indices[indexx][final_product_x<threshold2]
+    defecty = defect_indices[indexy][final_product_y<threshold2]
+    defectz = defect_indices[indexz][final_product_z<threshold2]
+
+    defect_indices_precise = np.concatenate([defectx, defecty, defectz])
+
+    if return_test:
+        final_product = np.zeros(np.shape(defect_indices)[0])
+        final_product[indexx] = final_product_x
+        final_product[indexy] = final_product_y
+        final_product[indexz] = final_product_z
+        return defect_indices_precise, final_product
+    else:
+        return defect_indices_precise
 
 
 
