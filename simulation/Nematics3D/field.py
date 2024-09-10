@@ -161,6 +161,24 @@ def interpolateQ_all(n, add_point, S=0):
     return result_Q 
 
 
+def get_ghost_point(point, box_size):
+    result = [np.array(point).copy()]  
+
+    for i, val in enumerate(point):
+        if val >= box_size[i]-1 or val <= 0:
+            current_length = len(result)
+            for j in range(current_length):
+                new_vector = result[j].copy()
+                if val <= 0:
+                    new_vector[i] = val + box_size[i]
+                else:
+                    new_vector[i] = val - box_size[i]
+                result.append(new_vector)
+                
+    return np.array(result)
+
+
+
 def subbox_slices(min_vertex, max_vertex, 
                   margin_ratio=0, min_limit=[-np.inf, -np.inf, -np.inf], max_limit=[np.inf, np.inf, np.inf],
                   box_grid_size=np.inf ):

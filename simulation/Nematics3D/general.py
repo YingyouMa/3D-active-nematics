@@ -22,7 +22,10 @@ def time_record(func):
 
 def find_neighbor_coord(x, reservoir, dist):
     from scipy.spatial.distance import cdist
-    return np.where( cdist( [x], reservoir)[0]  <= dist )
+    
+    if np.array(x).ndim == 1:
+        x = [x]
+    return np.where( cdist( x, reservoir)  <= dist )
 
 def sort_line_indices(coords):
     '''
@@ -112,19 +115,21 @@ def get_square(size, num, dim=2):
 
 def get_plane(points):
     #! how good are points lying in a plane
+    #! average rotation vector
     '''
     Calculate the normal vector of the best-fit plane to a set of 3D points 
     using Singular Value Decomposition (SVD).
 
     Parameters
     ----------
-    points : numpy.ndarray, N x 3
+    points : numpy.ndarray, (..., N, 3)
              Array containing the 3D coordinates of the points.
-             N is the number of points.
+             The last dimension represents the coordinates (x, y, z).
+             It will find the averaged normal vector for each group of N points.
 
     Returns
     -------
-    normal_vector : numpy.ndarray, 3
+    normal_vector : numpy.ndarray, (..., 3)
                     Array representing the normal vector of the best-fit plane.
 
     Dependencies
@@ -132,15 +137,17 @@ def get_plane(points):
     - numpy: 1.22.0   
     '''
     # Calculate the center of the points
-    center    = points.mean(axis=0)
+    center    = points.mean(axis=-2)
 
     # Translate the points to be relative to the center
-    relative  = points - np.tile(center, (np.shape(points)[0],1))
+    N = np.shape(points)[-2]
+    relative  = points - np.tile(center[:, np.newaxis, :], (*(np.ones(points.ndim-2).astype(int)), N, 1))
 
     # Perform Singular Value Decomposition (SVD) on the transposed relative points
-    svd  = np.linalg.svd(relative.T)
+    svd  = np.linalg.svd(np.swapaxes(relative, -1, -2), full_matrices=False)[0]
 
     # Extract the left singular vector corresponding to the smallest singular value
-    normal_vector = svd[0][:, -1]
+    normal_vector = svd[:, :, -1]
 
     return normal_vector
+

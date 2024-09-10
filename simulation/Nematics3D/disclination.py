@@ -205,6 +205,7 @@ def defect_find_vicinity_Q(defect_indices, n, S=0, num_add=3, boundary_periodic=
 def defect_vicinity_analysis(defect_indices, n, S=0, num_add=3, boundary_periodic=0):
 
     from .field import diagonalizeQ
+    from .general import get_plane
 
     defect_vicinity_Q = defect_find_vicinity_Q(defect_indices, n, 
                                                S=S, num_add=num_add, boundary_periodic=boundary_periodic)
@@ -214,86 +215,21 @@ def defect_vicinity_analysis(defect_indices, n, S=0, num_add=3, boundary_periodi
     same_orient = np.cumprod( same_orient, axis=-1)[:,-1]
     final_product = np.einsum( 'a, ai, ai -> a', same_orient, defect_vicinity_n[:,0], defect_vicinity_n[:,-1] )
 
-    return final_product
+    norm = get_plane(defect_vicinity_n)
+
+    return final_product, norm
 
 
+def defect_detect_precise(n, S=0, defect_indices=0,
+                          threshold1=0.5, threshold2=-0.9, boundary_periodic=0, planes=[1,1,1], num_add=3
+                          ):
 
+    if isinstance(defect_indices, int):
+        defect_indices = defect_detect(n, threshold=threshold1, boundary_periodic=boundary_periodic, planes=planes)
 
+    final_product = defect_vicinity_analysis(defect_indices, n, S=S, num_add=num_add, boundary_periodic=boundary_periodic)[0]
 
-
-def defect_detect_precise(n_origin, S=0,
-                          threshold1=0.5, threshold2=-0.9, boundary_periodic=0, planes=[1,1,1], num_add=3,
-                          return_test=False):
-    
-    from .field import interpolateQ, diagonalizeQ
-    
-    num = num_add + 2
-    length = 4 * num - 4
-    
-    defect_indices = defect_detect(n_origin, threshold=threshold1, boundary_periodic=boundary_periodic, planes=planes)
-
-    indexx = np.isclose(defect_indices[:, 0], np.round(defect_indices[:, 0]))
-    indexy = np.isclose(defect_indices[:, 1], np.round(defect_indices[:, 1]))
-    indexz = np.isclose(defect_indices[:, 2], np.round(defect_indices[:, 2]))
-
-    defectx = defect_indices[indexx]
-    defecty = defect_indices[indexy]
-    defectz = defect_indices[indexz]
-
-    squarex = get_square(1, num, dim=3)
-    squarey = squarex.copy()
-    squarey[:, [0, 1]] = squarey[:, [1, 0]]
-    squarez = squarex.copy()
-    squarez[:, [0, 1]] = squarez[:, [1, 0]]
-    squarez[:, [1, 2]] = squarez[:, [2, 1]]
-
-    defectx = defectx - np.broadcast_to([0.0, 0.5, 0.5],(np.shape(defectx)[0],3))
-    defecty = defecty - np.broadcast_to([0.5, 0.0, 0.5],(np.shape(defecty)[0],3))
-    defectz = defectz - np.broadcast_to([0.5, 0.5, 0.0],(np.shape(defectz)[0],3))
-
-    defectx = np.repeat(defectx, length, axis=0).reshape(np.shape(defectx)[0],length,3)
-    defecty = np.repeat(defecty, length, axis=0).reshape(np.shape(defecty)[0],length,3)
-    defectz = np.repeat(defectz, length, axis=0).reshape(np.shape(defectz)[0],length,3)
-
-    defectx =  defectx + np.broadcast_to(squarex, (np.shape(defectx)[0], length,3))
-    defecty =  defecty + np.broadcast_to(squarey, (np.shape(defecty)[0], length,3))
-    defectz =  defectz + np.broadcast_to(squarez, (np.shape(defectz)[0], length,3))
-
-    Q_around_x = interpolateQ(n_origin, defectx,  S=S, boundary_periodic=boundary_periodic)
-    Q_around_y = interpolateQ(n_origin, defecty,  S=S, boundary_periodic=boundary_periodic)
-    Q_around_z = interpolateQ(n_origin, defectz,  S=S, boundary_periodic=boundary_periodic)
-    
-    n_around_x = diagonalizeQ(Q_around_x)[1]
-    n_around_y = diagonalizeQ(Q_around_y)[1]
-    n_around_z = diagonalizeQ(Q_around_z)[1]
-
-    same_orient_x = np.sign(np.einsum( 'abi, abi -> ab', n_around_x[:, 1:], n_around_x[:, :-1] ))
-    same_orient_x = np.cumprod( same_orient_x, axis=-1)[:,-1]
-    final_product_x = np.einsum( 'a, ai, ai -> a', same_orient_x, n_around_x[:,0], n_around_x[:,-1] )
-
-    same_orient_y = np.sign(np.einsum( 'abi, abi -> ab', n_around_y[:, 1:], n_around_y[:, :-1] ))
-    same_orient_y = np.cumprod( same_orient_y, axis=-1)[:,-1]
-    final_product_y = np.einsum( 'a, ai, ai -> a', same_orient_y, n_around_y[:,0], n_around_y[:,-1] )
-
-    same_orient_z = np.sign(np.einsum( 'abi, abi -> ab', n_around_z[:, 1:], n_around_z[:, :-1] ))
-    same_orient_z = np.cumprod( same_orient_z, axis=-1)[:,-1]
-    final_product_z = np.einsum( 'a, ai, ai -> a', same_orient_z, n_around_z[:,0], n_around_z[:,-1] )
-
-    defectx = defect_indices[indexx][final_product_x<threshold2]
-    defecty = defect_indices[indexy][final_product_y<threshold2]
-    defectz = defect_indices[indexz][final_product_z<threshold2]
-
-    defect_indices_precise = np.concatenate([defectx, defecty, defectz])
-
-    if return_test:
-        final_product = np.zeros(np.shape(defect_indices)[0])
-        final_product[indexx] = final_product_x
-        final_product[indexy] = final_product_y
-        final_product[indexz] = final_product_z
-        return defect_indices_precise, final_product
-    else:
-        return defect_indices_precise
-
+    return defect_indices[final_product<threshold2]
 
 
 
@@ -421,6 +357,7 @@ def find_defect_n(defect_indices, size=0):
 
 def is_defects_connected(defect1, defect2):
     #! defect_indices half integer
+    #! same defect
     '''
     To examine if two defects are connected.
     Here the coordinate of defect must be composed of one integer and two half-integers,
@@ -452,13 +389,13 @@ def is_defects_connected(defect1, defect2):
     '''
     defect1 = np.array(defect1)
     defect2 = np.array(defect2)
-    defect_diff = np.abs(defect1 - defect2)
+    defect_diff = np.linalg.norm(np.abs(defect1 - defect2))**2
 
     result = False
-    if np.linalg.norm(defect_diff)**2 <= 0.51:
+    if defect_diff <= 0.51 and defect_diff>0:
         result = True
-    elif np.linalg.norm(defect_diff) <= 1:
-        if defect1[defect_diff>=1][0] % 1 == 0:
+    elif defect_diff <= 1:
+        if defect1[np.abs(defect1 - defect2)==1][0] % 1 == 0:
             result = True
     
     return result
@@ -511,6 +448,61 @@ def add_mid_points_disclination(line, is_loop=False):
         line = line[:-1]
     
     return line_new 
+
+
+def lines_connect_closed(lines_list, box_size):
+
+    from .field import get_ghost_point
+    from itertools import product
+
+    closed_list = []
+    wait_list = []
+    closed_no_list=[]
+
+    for line in lines_list:
+        if is_defects_connected( line[0], line[-1]):
+            closed_list.append(line)
+        else:
+            point1 = get_ghost_point(line[0]%box_size, box_size)
+            point2 = get_ghost_point(line[-1]%box_size, box_size)
+            wait_list.append([line, [point1, point2]])
+
+    while len(wait_list)>1:
+        wait_line = wait_list[0]
+        for count in (0, 1):
+            for i in range(len(wait_list)-1,0,-1):
+                test_line = wait_list[i]
+                point_start = wait_line[1][count]
+                for j in (0,1):
+                    if_find = False
+                    for point1, point2 in product(point_start, test_line[1][j]):
+                        #print(point1, point2)
+                        if is_defects_connected(point1, point2):
+                            print('found')
+                            if_find = True
+                            cross_box = (wait_line[0][-count] - test_line[0][-j])//box_size
+                            to_add = test_line[0] + cross_box * box_size
+                            if count==0 and j==1:
+                                wait_list[0][0] = np.vstack([to_add, wait_line[0]])
+                                wait_list[0][1][0] = test_line[1][0]
+                            if count==1 and j==0:
+                                wait_list[0][0] = np.vstack([wait_line[0], to_add])
+                                wait_list[0][1][1] = test_line[1][1]    
+                            wait_list.pop(i)
+                            break
+                    if if_find == True:
+                        break
+
+
+                            
+
+
+
+
+                
+
+
+
 
 
 def defect_classify_into_lines_init(defect_indices, box_size, print_time=False, print_per=1000):
