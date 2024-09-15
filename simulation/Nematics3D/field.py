@@ -141,8 +141,9 @@ def unwrap_trajectory(points, box_size_periodic=[np.inf, np.inf, np.inf]):
     deltas = np.diff(points, axis=0)  
     
     for i in range(3):
-        deltas[:,i] = np.where(deltas[:,i] >  box_size_periodic[i] // 2, deltas[:,i] - box_size_periodic[i], deltas[:,i])
-        deltas[:,i] = np.where(deltas[:,i] < -box_size_periodic[i] // 2, deltas[:,i] + box_size_periodic[i], deltas[:,i])
+        if box_size_periodic[i] != np.inf:
+            deltas[:,i] = np.where(deltas[:,i] >  box_size_periodic[i] // 2, deltas[:,i] - box_size_periodic[i], deltas[:,i])
+            deltas[:,i] = np.where(deltas[:,i] < -box_size_periodic[i] // 2, deltas[:,i] + box_size_periodic[i], deltas[:,i])
     
     points_unwrap = np.concatenate([[points[0]], points[0] + np.cumsum(deltas, axis=0)])
     

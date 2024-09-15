@@ -480,7 +480,8 @@ def add_mid_points_disclination(line, is_loop=False):
 
 
 @time_record
-def defect_classify_into_lines(defect_indices, box_size_periodic, box_size=0):
+def defect_classify_into_lines(defect_indices, box_size_periodic,
+                               origin=(0,0,0), space_index_ratio=1):
     """
     Short description of the function.
     
@@ -491,7 +492,7 @@ def defect_classify_into_lines(defect_indices, box_size_periodic, box_size=0):
     param1 : type
         Description of param1.
     
-    param2 : type, optional
+    param2 : type, optional 
         Description of param2.
     
     Returns
@@ -512,7 +513,6 @@ def defect_classify_into_lines(defect_indices, box_size_periodic, box_size=0):
     from .field import unwrap_trajectory
 
     box_size_periodic = array_from_single_or_list(box_size_periodic)
-    box_size = array_from_single_or_list(box_size)
     defect_indices_hash = make_hash_table(defect_indices)
 
     graph = Graph()
@@ -528,7 +528,9 @@ def defect_classify_into_lines(defect_indices, box_size_periodic, box_size=0):
 
     paths = [unwrap_trajectory(defect_indices[path], box_size_periodic=box_size_periodic) for path in paths]
 
-    lines = [DisclinationLine(path, box_size_periodic) for path in paths]
+    lines = [DisclinationLine(path, box_size_periodic, 
+                              origin=origin, space_index_ratio=space_index_ratio)  
+                              for path in paths]
 
     return lines
 
@@ -612,7 +614,10 @@ def sample_far(num):
 
 @time_record
 def example_visualize_defects(lines, is_wrap=True, min_length=50, window_length=61, 
-                              opacity=1, radius=0.5):
+                              opacity=1, radius=0.5,
+                              outline_extent=[0,128,0,128,0,128]):
+    
+    from mayavi import mlab
 
     lines = [line for line in lines if line._defect_num>min_length]
     lines = sorted(lines, 
@@ -627,9 +632,16 @@ def example_visualize_defects(lines, is_wrap=True, min_length=50, window_length=
         line.figure_init(tube_color=tuple(lines_color[i]), is_new=1-bool(i), is_wrap=is_wrap,
                          tube_opacity=opacity, tube_radius=radius)
         
+    figure = mlab.gcf()
+    mlab.outline(figure=figure, color=(0,0,0), extent=outline_extent, line_width=4)
+    mlab.view(distance=450)
+        
 @time_record
 def example_visualize_defects_loops_init(lines, is_wrap=True, min_length=30, window_length=61, 
-                                         opacity=1, radius=1):
+                                         opacity=1, radius=1,
+                                         outline_extent=[0,382,0,382,0,382]):
+    
+    from mayavi import mlab
 
     lines = [line for line in lines if line._defect_num>min_length]
     lines = sorted(lines, 
@@ -646,6 +658,10 @@ def example_visualize_defects_loops_init(lines, is_wrap=True, min_length=30, win
         line.figure_init(tube_color=tube_color, 
                          is_new=1-bool(i), is_wrap=is_wrap,
                          tube_opacity=opacity, tube_radius=radius)
+        
+    figure = mlab.gcf()
+    mlab.outline(figure=figure, color=(0,0,0), extent=outline_extent, line_width=4) 
+    mlab.view(azimuth=90, elevation=90, distance=950, roll=90)
 
 
 @time_record

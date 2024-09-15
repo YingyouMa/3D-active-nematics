@@ -10,7 +10,7 @@ class DisclinationLine:
 
 
     """
-    def __init__(self, defect_indices, box_size_periodic, box_size=0,
+    def __init__(self, defect_indices, box_size_periodic,
                        is_sorted=True, origin=(0,0,0), space_index_ratio=1, is_add_mid=True):   
         '''
         defect_indices : array, (M,3)
