@@ -10,6 +10,72 @@ import numpy as np
 
 from .general import *
 
+def find_mirror_point_boundary(point, box_size_periodic=[np.inf, np.inf, np.inf], is_self=True):
+    """
+    For point near the periodic boundary condition, find all the mirror points across the periodic boundary.
+    
+    It only works for the index between [-1,0] and [N-1, N], where N is the maximum index in the corresponding dimension.
+    For example, for point = (-1, 127, 127.5) and box_size = [128, np.inf, 128], the return should be a numpy array of
+    [(127.0, 127.0, 127.5),
+    (127.0, 127.0, -0.5),
+    (-1.0, 127.0, 127.5),
+    (-1.0, 127.0, -0.5)]
+    
+    Parameters
+    ----------
+    point : array like, (,3)
+            Index of the given point
+    
+    box_size_periodic : array of three floats, or one float, optional
+                        The number of indices in each dimension, x, y, z.
+                        If box_size is x, it will be interprepted as [x,x,x].
+                        If one of the boundary is not periodic, the corresponding value in box_size is np.inf.
+                        For example, if the box is periodic in x and y dimension, and the possible maximum index is X and Y,
+                        box_size should be [X+1, Y+1, np.inf].
+                        Default is [np.inf, np.inf, np.inf], which means the function only return the point itself.
+
+    is_self : bool, optional
+              If the original point itself is included in the output.
+              Default is True
+    
+    Returns
+    -------
+    return_name : mirror_points, (N,3)
+                  The indices of all the mirror points
+    
+    Dependencies
+    ------------
+    - Numpy : 1.26.4
+    
+    Called by
+    ---------
+    - .disclination.defect_neighbor_possible_get()
+    """
+
+    from itertools import product
+
+    box_size = array_from_single_or_list(box_size_periodic)
+    point = np.array(point)
+
+    point = np.where( point==np.inf, point, point%box_size )
+
+    mirrors = [[value] for value in point]
+    for i, mirror in enumerate(mirrors):
+        N = box_size[i]
+        value = point[i]
+        if N != np.inf:
+            if -1 <= value <= 0:
+                mirror.append(value + N)
+            elif N-1 <= value <= N:
+                mirror.append(value - N)
+
+    mirror_points = np.array(list(product(*mirrors)))
+
+    if not is_self:
+        mirror_points = mirror_points[1:]
+
+    return mirror_points
+
 
 def add_periodic_boundary(data, boundary_periodic=0):
 
@@ -28,6 +94,59 @@ def add_periodic_boundary(data, boundary_periodic=0):
             output[:,:,L] = output[:,:,0] 
 
     return output
+
+
+def unwrap_trajectory(points, box_size_periodic=[np.inf, np.inf, np.inf]):
+    """
+    Unwrap the points which compose a line crossing the periodic boundary
+    
+    When a line cross the periodic boundary and the indices of each point is wrap, 
+    we will see a sudden "jump" between the indices of points which on different sides of the boundary.
+    This function is designed to erase such jump to make the indices of points continuous,
+    as unwrapping the points.
+    
+    Parameters
+    ----------
+    points : array like, (N,3)
+             The indices of points composing the line.
+             N is the number of points
+    
+    box_size_periodic : array of three floats, or one float, optional
+                        The number of indices in each dimension, x, y, z.
+                        If box_size is x, it will be interprepted as [x,x,x].
+                        If one of the boundary is not periodic, the corresponding value here is np.inf.
+                        For example, if the box is periodic in x and y dimension, and the possible maximum index is X and Y,
+                        box_size_periodic should be [X+1, Y+1, np.inf].
+                        Default is [np.inf, np.inf, np.inf], which means the function only return the point itself.
+
+    
+    Returns
+    -------
+    points_unwrap : numpy.ndarray, (N,3)
+                    The indices of unwrapped points.
+    
+    Dependencies
+    ------------
+    - Numpy : 1.26.4
+    - .general.array_from_single_or_list()
+    
+    Called by
+    ---------
+    - .disclination.defect_classify_into_lines_edge()
+    """
+    
+
+    box_size_periodic = array_from_single_or_list(box_size_periodic)
+    points = np.array(points)  
+    deltas = np.diff(points, axis=0)  
+    
+    for i in range(3):
+        deltas[:,i] = np.where(deltas[:,i] >  box_size_periodic[i] // 2, deltas[:,i] - box_size_periodic[i], deltas[:,i])
+        deltas[:,i] = np.where(deltas[:,i] < -box_size_periodic[i] // 2, deltas[:,i] + box_size_periodic[i], deltas[:,i])
+    
+    points_unwrap = np.concatenate([[points[0]], points[0] + np.cumsum(deltas, axis=0)])
+    
+    return points_unwrap
 
 
 def diagonalizeQ(qtensor):
@@ -141,9 +260,8 @@ def interpolateQ(n, result_points, S=0, boundary_periodic=0):
     return result_Q
 
 
-def interpolateQ_all(n, add_point, S=0):
-
-    from scipy.interpolate import interpn
+@time_record
+def interpolateQ_all(n, add_point, S=0, boundary_periodic=0):
 
     add_point = array_from_single_or_list(add_point) 
     init_shape = np.array(np.shape(n)[:3])
@@ -156,7 +274,7 @@ def interpolateQ_all(n, add_point, S=0):
         )))
     result_points = result_points.reshape((*result_shape,3))
 
-    result_Q = interpolateQ(n, S=S)
+    result_Q = interpolateQ(n, result_points, S=S, boundary_periodic=boundary_periodic)
 
     return result_Q 
 

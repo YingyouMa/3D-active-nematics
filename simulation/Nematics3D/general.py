@@ -20,12 +20,21 @@ def time_record(func):
         return result
     return wrapper
 
-def find_neighbor_coord(x, reservoir, dist):
+
+def find_neighbor_coord(x, reservoir, dist_large, dist_small=0, strict=(0,0)):
     from scipy.spatial.distance import cdist
     
     if np.array(x).ndim == 1:
         x = [x]
-    return np.where( cdist( x, reservoir)  <= dist )
+    
+    epsilon = np.nextafter(0, 1)
+    dist = cdist( x, reservoir)
+
+    condition_small = dist >= dist_small + strict[0]*epsilon
+    condition_large = dist <= dist_large - strict[0]*epsilon
+
+    return np.where( condition_large * condition_small )
+
 
 def sort_line_indices(coords):
     '''
@@ -136,6 +145,10 @@ def get_plane(points):
     ------------
     - numpy: 1.22.0   
     '''
+    ndim = points.ndim
+    if ndim == 2:
+        points = np.array([points])
+
     # Calculate the center of the points
     center    = points.mean(axis=-2)
 
@@ -149,5 +162,33 @@ def get_plane(points):
     # Extract the left singular vector corresponding to the smallest singular value
     normal_vector = svd[:, :, -1]
 
+    if ndim == 2:
+        normal_vector = normal_vector[0]
+
     return normal_vector
 
+
+def make_hash_table(input):
+
+    from collections import defaultdict
+
+    hash_table = defaultdict(lambda: np.nan)
+    for idx, item in enumerate(input):
+        item_hash = tuple(item)
+        hash_table[item_hash] = idx
+    
+    return hash_table
+
+def search_in_reservoir(items, reservoir, is_reservoir_hash=False):
+
+    if not is_reservoir_hash:
+        reservoir_hash_table = make_hash_table(reservoir)
+    else:
+        reservoir_hash_table = reservoir
+
+    result = np.zeros(len(items))
+    for idx, item in enumerate(items):
+        item = tuple(item)
+        result[idx] = reservoir_hash_table[item]
+
+    return result
