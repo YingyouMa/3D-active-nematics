@@ -336,17 +336,15 @@ def defect_neighbor_possible_get(defect_index, box_size_periodic=[np.inf, np.inf
     if layer_index != 0:
         neighbor[:, (0, layer_index)] = neighbor[:, (layer_index, 0)]
 
-    result_init = np.tile(defect_index,(10,1)) + neighbor
+    result = np.tile(defect_index,(10,1)) + neighbor
     
     defect_index_in_periodic = defect_index[box_size_periodic!=np.inf]
     box_size_in_periodic = box_size_periodic[box_size_periodic!=np.inf]
-    if np.min(defect_index_in_periodic)<=1 or np.any(defect_index_in_periodic >= box_size_in_periodic-2):
-        result = []
-        for point in result_init:
-            result.append(find_mirror_point_boundary(point, box_size_periodic=box_size_periodic))
-        result = np.vstack(result)
-    else:
-        result = result_init
+    if len(defect_index_in_periodic)>0:
+        if np.min(defect_index_in_periodic)<=1 or np.any(defect_index_in_periodic >= box_size_in_periodic-2):
+            result = [find_mirror_point_boundary(point, box_size_periodic=box_size_periodic)
+                      for point in result]
+            result = np.vstack(result)
     
     return result
 
@@ -525,8 +523,8 @@ def defect_classify_into_lines(defect_indices, box_size_periodic,
             graph.add_edge(idx1, idx2)
 
     paths = graph.find_path()
-
-    paths = [unwrap_trajectory(defect_indices[path], box_size_periodic=box_size_periodic) for path in paths]
+    paths = [unwrap_trajectory(defect_indices[path], box_size_periodic=box_size_periodic) 
+            for path in paths]
 
     lines = [DisclinationLine(path, box_size_periodic, 
                               origin=origin, space_index_ratio=space_index_ratio)  

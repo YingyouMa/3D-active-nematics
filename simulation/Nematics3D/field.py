@@ -92,6 +92,8 @@ def add_periodic_boundary(data, boundary_periodic=0):
             output[:, M] = output[:, 0]
         if boundary_periodic[2] == True:
             output[:,:,L] = output[:,:,0] 
+    else:
+        output = data
 
     return output
 
@@ -226,6 +228,8 @@ def diagonalizeQ(qtensor):
 
 
 def getQ(n, S=0, boundary_periodic=0):
+
+    boundary_periodic = array_from_single_or_list(boundary_periodic)
 
     Q = np.einsum('...i, ...j -> ...ij', n, n)
     Q = Q - np.diag((1,1,1))/3
@@ -814,7 +818,7 @@ def visualize_nematics_field(n=[0], S=[0],
     - mayavi: 4.8.2
 
     """
-    from .disclination import defect_detect, find_defect_n
+    from .disclination import defect_detect, defect_find_vicinity_grid
 
     # examine the input data
     n = np.array(n)
@@ -988,9 +992,12 @@ def visualize_nematics_field(n=[0], S=[0],
                     ind_init = np.vstack([ind_init, np.array(list(product(*indexall_n)))])
                     inx, iny, inz = np.meshgrid(indexall_n[0], indexall_n[1], indexall_n[2], indexing='ij')
                     ind_local = (inx, iny, inz)
-                    defect_local = defect_detect(n[ind_local], planes=[i],
+                    planes_defect_detect = np.zeros(3)
+                    planes_defect_detect[i] =1
+                    defect_local = defect_detect(n[ind_local], planes=planes_defect_detect,
                                                  threshold=defect_threshold, print_time=defect_print_time)
-                    defect_n_local = find_defect_n(defect_local)
+                    # defect_n_local = find_defect_n(defect_local)
+                    defect_n_local = defect_find_vicinity_grid(defect_local, num_add=0).reshape(-1,3).astype(int)
                     defect_n_local[:,0] = indexall_n[0][defect_n_local[:,0]]
                     defect_n_local[:,1] = indexall_n[1][defect_n_local[:,1]]
                     defect_n_local[:,2] = indexall_n[2][defect_n_local[:,2]]
