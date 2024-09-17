@@ -478,7 +478,7 @@ def add_mid_points_disclination(line, is_loop=False):
 
 
 @time_record
-def defect_classify_into_lines(defect_indices, box_size_periodic,
+def defect_classify_into_lines(defect_indices, box_size_periodic=[np.inf, np.inf, np.inf],
                                origin=(0,0,0), space_index_ratio=1):
     """
     Short description of the function.

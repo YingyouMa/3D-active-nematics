@@ -57,7 +57,7 @@ def find_mirror_point_boundary(point, box_size_periodic=[np.inf, np.inf, np.inf]
     box_size = array_from_single_or_list(box_size_periodic)
     point = np.array(point)
 
-    point = np.where( point==np.inf, point, point%box_size )
+    point = np.where( box_size==np.inf, point, point%box_size )
 
     mirrors = [[value] for value in point]
     for i, mirror in enumerate(mirrors):
@@ -588,7 +588,7 @@ def n_color_func_default(n):
 # ---------------------------------------------------------------------------------
 # Visualize the diretors and defects (or the low S region) with given n and S field
 # ---------------------------------------------------------------------------------
-def visualize_nematics_field(n=[0], S=[0],
+def visualize_nematics_field(n=[0], S=[0], defect_indices=None,
                              plotn=True, plotS=True, plotdefects=False,
                              space_index_ratio=1, sub_space=1, origin=(0,0,0), expand_ratio=1,
                              n_opacity=1, n_interval=(1,1,1), n_shape='cylinder', n_width=2, n_plane_index=[],
@@ -599,7 +599,7 @@ def visualize_nematics_field(n=[0], S=[0],
                              defect_opacity=0.8, defect_size_ratio_to_dist=2, defect_color=(0,0,0),
                              boundary_periodic=False, defect_threshold=0, defect_print_time=False,
                              new_figure=True, bgcolor=(1,1,1), fgcolor=(0,0,0), if_axes=False,
-                             defect_n_opacity=-1, n_if_color_loop=False
+                             defect_n_opacity=-1, n_if_color_immerse=False
                              ):
 
     #! float n_interval with interpolation
@@ -628,6 +628,12 @@ def visualize_nematics_field(n=[0], S=[0],
         the scalar order parameter of each grid point.
         Default is [0], which means no data of S.
         The shape of n, (N, M, L), must match the shape of S if S is plotted with n or defects.
+
+    defect_indices : numpy array, optional
+                     The indices of defects  of n in the plotted region.
+                     If defect_indices = None, the function will detect the defects automatically.
+                     Or defect_indices could be manually input in this function.
+                     defect_indices should follow the format discribed by .disclination.defect_detect().
 
     plotn : bool, optional
             If True, plot the director field. 
@@ -664,7 +670,6 @@ def visualize_nematics_field(n=[0], S=[0],
                    If a single float x is provided, it is interpreted as (x, x, x).
                    Default is 1, as no stretch or compress.  
                    Warning: if expand_ratio is not 1 or (1,1,1), the plot will be deformed, so that it does NOT stand for the real space anymore.
-
 
     n_opacity : float, optional
                 Opacity of the director field. 
@@ -794,22 +799,14 @@ def visualize_nematics_field(n=[0], S=[0],
                        The opacity of directors around the defects.
                        Default is -1, which means not to distinguish the directors around the defects or not
     
-    n_if_color_loop : bool, optional
-                      If true, the directors will colored by nematics_color_immerse(), which use the immersion from RP2 to R3,
-                      where RP2 is the state space of 3D nematics and R3 is the state space of RGB.
-                      The specific advantage and shortage with this color function is briefly introduced in #! a document
-                      Here, to plot n with this method, the directors have to be plotted with a loop, rather than a parallel function,
-                      so it will need much more time.
-                      This flag will cover n_color_func and n_if_color_bar.
-                      Default is False, using the parallel way to color n.
-
-    Returns
-    -------
-    S : numpy array, N x M x L
-        the biggest eigenvalue as the scalar order parameter of each grid
-
-    n : numpy array, N x M x L x 3
-        the eigenvector corresponding to the biggest eigenvalue, as the director, of each grid.
+    n_if_color_immerse : bool, optional
+                         If true, the directors will colored by nematics_color_immerse(), which use the immersion from RP2 to R3,
+                         where RP2 is the state space of 3D nematics and R3 is the state space of RGB.
+                         The specific advantage and shortage with this color function is briefly introduced in #! a document
+                         Here, to plot n with this method, the directors have to be plotted with a loop, rather than a parallel function,
+                         so it will need much more time.
+                         This flag will cover n_color_func and n_if_color_bar.
+                         Default is False, using the parallel way to color n.
 
 
     Dependencies
@@ -834,14 +831,10 @@ def visualize_nematics_field(n=[0], S=[0],
     from mayavi import mlab
 
     # examine the input parameters
-    if len(np.shape([space_index_ratio])) == 1:
-        space_index_ratio = (space_index_ratio, space_index_ratio, space_index_ratio)
-    if len(np.shape([n_interval])) == 1:
-        n_interval = (n_interval, n_interval, n_interval)
-    if len(np.shape([expand_ratio])) == 1:
-        expand_ratio = np.array([expand_ratio, expand_ratio, expand_ratio])
-    else:
-        expand_ratio = np.array(expand_ratio)
+    space_index_ratio = array_from_single_or_list(space_index_ratio)
+    n_interval = array_from_single_or_list(n_interval)
+    expand_ratio = array_from_single_or_list(expand_ratio)
+
     if np.linalg.norm(expand_ratio-1) != 0 and if_axes==True:
         print("\nWarning: The expand_ratio is not (1,1,1)")
         print("This means the distance between glyphs are changed")
@@ -891,17 +884,23 @@ def visualize_nematics_field(n=[0], S=[0],
     #plot defects
     if plotdefects:
 
-        if sub_space != 1 and boundary_periodic == True:
-            print('\nWarning: The periodic boundary condition is only possible for the whole box')
-            print('Automatically deactivate the periodic boundary condition')
-            print('Read the document for more information.')
-            boundary_periodic = False
+        if isinstance(defect_indices, np.ndarray):
+            print('\ndefecr_indices are manually input')
+        else:
+            print('\nNo defect_indices input.')
+            print('Start to detect defect automatically.')
 
-        # find defects
-        print('\nDetecting defects')
-        defect_indices = defect_detect(n[ind], boundary_periodic=boundary_periodic, threshold=defect_threshold,
-                                       print_time=defect_print_time)
-        print('Finished!')
+            if sub_space != 1 and boundary_periodic == True:
+                print('\nWarning: The periodic boundary condition is only possible for the whole box')
+                print('Automatically deactivate the periodic boundary condition')
+                print('Read the document for more information.')
+                boundary_periodic = False
+
+            # find defects
+            print('\nDetecting defects')
+            defect_indices = defect_detect(n[ind], boundary_periodic=boundary_periodic, threshold=defect_threshold,
+                                        print_time=defect_print_time)
+            print('Finished!')
 
         # Move the defect points to have the correct location in real space
         defect_indices = np.einsum('na, a, a -> na',
@@ -1028,7 +1027,7 @@ def visualize_nematics_field(n=[0], S=[0],
         n_order_ind = tuple(n_order_ind.T)
         n_defect_ind = tuple(n_defect_ind.T)
 
-        def make_plot_directors(ind, n_opacity, n_if_color_loop=False):
+        def make_plot_directors(ind, n_opacity, n_if_color_immerse=False):
 
             cord1 = (X[ind])*expand_ratio[0] - n[ind][..., 0]*n_length/2 + origin[0]
             cord2 = (Y[ind])*expand_ratio[1] - n[ind][..., 1]*n_length/2 + origin[1]
@@ -1039,7 +1038,7 @@ def visualize_nematics_field(n=[0], S=[0],
             nz = n[ind][..., 2]
 
             # examine if directors are colored by function or uniform color
-            if n_if_color_loop == False:
+            if n_if_color_immerse == False:
                 try:
                     len(n_color_func) # if n_color_func is a list, to plot the director with this list
                     scalars = X[ind]*0
@@ -1057,7 +1056,7 @@ def visualize_nematics_field(n=[0], S=[0],
                 print("n_color_func and n_if_colorbar will be ignored ")
 
             # make plot
-            if n_if_color_loop == False:
+            if n_if_color_immerse == False:
                 object = mlab.quiver3d(
                         cord1, cord2, cord3,
                         nx, ny, nz,
@@ -1086,11 +1085,11 @@ def visualize_nematics_field(n=[0], S=[0],
             return object, n_color_scalars, scalars
 
         vector, n_color_scalars, scalars = make_plot_directors(n_order_ind, 
-                                                               n_opacity=n_opacity, n_if_color_loop=n_if_color_loop)
+                                                               n_opacity=n_opacity, n_if_color_immerse=n_if_color_immerse)
 
         if np.size(n_defect_ind)>1:
             make_plot_directors(n_defect_ind, 
-                                n_opacity=defect_n_opacity, n_if_color_loop=n_if_color_loop)
+                                n_opacity=defect_n_opacity, n_if_color_immerse=n_if_color_immerse)
         
         # make colorbar of n
         if n_color_scalars == True:
