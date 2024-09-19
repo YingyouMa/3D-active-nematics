@@ -1052,7 +1052,7 @@ def visualize_nematics_field(n=[0], S=[0], defect_indices=None,
                 n_color_scalars = False
                 scalars = X[ind]*0
                 n_color = nematics_color_immerse(n[ind]) 
-                print("\nWarning! n_if_color_loop is true, it will be much slower")
+                print("\nWarning! n_if_color_immerse is true, it will be much slower")
                 print("n_color_func and n_if_colorbar will be ignored ")
 
             # make plot
@@ -1169,14 +1169,19 @@ def nematics_color_immerse(n):
     RGB[..., 2] = (x+y+z) * ( (x+y+z)**3 + 4*(y-x)*(z-y)*(x-z))
 
     RGB[..., 0] = RGB[..., 0] / 2
-    RGB[..., 1] = RGB[..., 1] * np.sqrt(3) / 2
+    RGB[..., 1] = RGB[..., 1] * 7 / 8
     RGB[..., 2] = RGB[..., 2] /8
 
-    RGB[..., 0] = RGB[..., 0] / 1.87 + 0.42
-    RGB[..., 1] = RGB[..., 1] / 2 + 0.5
-    RGB[..., 2] = RGB[..., 2] / 1.3 + 0.13
+    result = np.zeros((*(np.shape(n)[:-1]), 3))
+    result[..., 0] =  1.01667*RGB[..., 0]  -  0.3*RGB[..., 1]  -  0.48333*RGB[..., 2]
+    result[..., 1] = -1.01667*RGB[..., 0]  -  1.5*RGB[..., 1]  -  1.31667*RGB[..., 2]
+    result[..., 2] = -0.18333*RGB[..., 0]  +  0.3*RGB[..., 1]  +  1.31667*RGB[..., 2] 
 
-    return RGB
+    result[...,0] = result[...,0] / 2.1 + 0.45
+    result[...,1] = result[...,1] / 4.2 + 0.51
+    result[...,2] = result[...,2] / 2.0 + 0.23
+
+    return result
 
 def visualize_nematics_field_old(n=[0], S=[0],
                              plotn=True, plotS=True, plotdefects=False,
