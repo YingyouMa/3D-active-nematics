@@ -38,6 +38,7 @@ from pathname import get_mainpath
 # Directory
 ROOT = Path(__file__).resolve().parent
 CREATE_POLY_PATH = ROOT / "tools/create_poly.py" # Path to the create_poly.py script, which generates the initial condition.
+PARAMETERS_PATH = ROOT / "parameters.csv"
 
 # Constants of filaments
 WIDTH               = 200       # Box width
@@ -70,7 +71,7 @@ print(check_table)
 
 
 # Read the parameters for simulations from parameters.csv
-parameters = np.array(pd.read_csv("parameters.csv"))
+parameters = np.array(pd.read_csv(PARAMETERS_PATH))
 
 # The directory's name of upcoming simulations
 name_list = np.arange(1, 4)
@@ -125,12 +126,13 @@ def main(parameter, name):
     # If the simulation time of the latest dump file is longer than set, create the completetion flag
     dump_files = glob.glob('dump/*data*')
     frames = np.array([int(re.findall(r'\d+', file)[-1]) for file in dump_files])
-    dump_final = np.sort(frames)[-1]
-    if dump_final >= max_time:
-        with open('end.txt', 'w') as f:
-            f.write(f'{dump_final*TIME_STEP}')
-        print('The simulation has finished')
-        return 0
+    if len(frames)>0:
+        dump_final = np.sort(frames)[-1]
+        if dump_final >= max_time:
+            with open('end.txt', 'w') as f:
+                f.write(f'{dump_final*TIME_STEP}')
+            print('The simulation has finished')
+            return 0
 
     # Check if it's a new simulation
     save_version = 1

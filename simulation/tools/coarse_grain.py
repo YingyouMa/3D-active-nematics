@@ -42,7 +42,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--k", type=int) 						        # stiffness
 parser.add_argument("--a", type=float) 								# activity
 parser.add_argument("--name", type=int) 							# name
-parser.add_argument("--suffix", default=".data", type=str)	# the suffix of dump file names
+parser.add_argument("--suffix", default=".data", type=str)	        # the suffix of dump file names
 parser.add_argument("--N_raw", default=300, type=int)				# initial coarse-grained grid dimensions
 parser.add_argument("--N_trunc", default=128, type=int) 			# truncated wave number
 parser.add_argument("--sdtn", default=0.9, type=float) 	            # the threshold of bond length of wrapped monomers, normalized by box width
