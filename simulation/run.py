@@ -119,7 +119,7 @@ def main(parameter, name):
         with open(path / 'end.txt', 'r') as f:
             end = float(f.readline().strip())
         if end >= max_time:
-            print('The simulation has finished')
+            print('  The simulation has finished')
             return 0
     
     # Next, check the dump directory
@@ -128,10 +128,10 @@ def main(parameter, name):
     frames = np.array([int(re.findall(r'\d+', file)[-1]) for file in dump_files])
     if len(frames)>0:
         dump_final = np.sort(frames)[-1]
-        if dump_final >= max_time:
+        if dump_final >= max_step:
             with open('end.txt', 'w') as f:
                 f.write(f'{dump_final*TIME_STEP}')
-            print('The simulation has finished')
+            print('  The simulation has finished')
             return 0
 
     # Check if it's a new simulation

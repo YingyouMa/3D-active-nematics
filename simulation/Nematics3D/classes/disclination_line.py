@@ -54,6 +54,7 @@ class DisclinationLine:
         self._origin = origin
         self._space_index_ratio = array_from_single_or_list(space_index_ratio)
         self._box_size_periodic = box_size_periodic
+        self._box_size_periodic_coord = box_size_periodic * self._space_index_ratio
         self._defect_num = np.shape(self._defect_indices)[0]
 
         if np.linalg.norm(defect_indices[0] - defect_indices[-1]) == 0:
@@ -146,7 +147,8 @@ class DisclinationLine:
             figures = [figure]
         else:
 
-            line_coord = np.where( self._box_size_periodic==np.inf, line_coord, line_coord%self._box_size_periodic )
+            line_coord = np.where( self._box_size_periodic_coord==np.inf, 
+                                  line_coord, line_coord%self._box_size_periodic_coord )
             diff = line_coord[1:] - line_coord[:-1]
             diff = np.linalg.norm(diff, axis=-1)
             end_list = np.where(diff>1)[0] + 1

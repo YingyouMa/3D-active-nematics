@@ -222,13 +222,13 @@ def defect_vicinity_analysis(defect_indices, n, S=0, num_add=3, boundary_periodi
                                                S=S, num_add=num_add, boundary_periodic=boundary_periodic)
     defect_vicinity_n = diagonalizeQ(defect_vicinity_Q)[1]
 
-    same_orient = np.sign(np.einsum( 'abi, abi -> ab', defect_vicinity_n[:, 1:], defect_vicinity_n[:, :-1] ))
-    same_orient = np.cumprod( same_orient, axis=-1)[:,-1]
-    final_product = np.einsum( 'a, ai, ai -> a', same_orient, defect_vicinity_n[:,0], defect_vicinity_n[:,-1] )
+    # same_orient = np.sign(np.einsum( 'abi, abi -> ab', defect_vicinity_n[:, 1:], defect_vicinity_n[:, :-1] ))
+    # same_orient = np.cumprod( same_orient, axis=-1)[:,-1]
+    # final_product = np.einsum( 'a, ai, ai -> a', same_orient, defect_vicinity_n[:,0], defect_vicinity_n[:,-1] )
 
     norm = get_plane(defect_vicinity_n)
 
-    return final_product, norm
+    return norm
 
 
 def defect_detect_precise(n, S=0, defect_indices=0,
@@ -605,6 +605,50 @@ def sample_far(num):
     return result
 
 
+def is_loop_new(lines, loop_indices, 
+                threshold=4, box_size_periodic=[np.inf, np.inf, np.inf], min_length=8):
+
+    from scipy.spatial.distance import cdist
+    from .field import unwrap_trajectory
+
+    loop_indices = loop_indices[:-1]
+    if len(loop_indices) <= min_length:
+        return "small", -1
+
+    box_size_periodic = array_from_single_or_list(box_size_periodic)
+    loop_indices = np.where(box_size_periodic == np.inf, loop_indices, loop_indices % box_size_periodic)
+
+
+    for i,line in enumerate(lines): # line: one of the old loops. loop: the new loop to be checked.
+        line_indices = line._defect_indices[:-1]
+        line_indices = np.where(box_size_periodic == np.inf, line_indices, line_indices % box_size_periodic)
+        dist = cdist(loop_indices, line_indices)
+        if np.min(dist) <= threshold:
+            loop_start_index, line_start_index = np.unravel_index(np.argmin(dist, axis=None), dist.shape)
+            loop_indices_unwrap = np.concatenate( [ loop_indices[loop_start_index:], loop_indices[:loop_start_index] ] )
+            line_indices_unwrap = np.concatenate( [ line_indices[line_start_index:], line_indices[:line_start_index] ] )
+            loop_indices_unwrap = unwrap_trajectory(loop_indices_unwrap, box_size_periodic=box_size_periodic)
+            line_indices_unwrap = unwrap_trajectory(line_indices_unwrap, box_size_periodic=box_size_periodic)
+            dist_unwrap = cdist(loop_indices_unwrap, line_indices_unwrap)
+            dist_unwrap = np.min(dist_unwrap, axis=1) # for each defect in loop, find the closest distance between this defect and the line
+            if np.max(dist_unwrap) > threshold:
+                return "mix", i
+            else:
+                return "old", i
+            
+    if len(loop_indices) <= min_length:
+        return "small", -1
+    else:
+        return "new", -1
+            
+            
+
+
+
+
+    
+
+
 # -----------------------------------------------------
 # Specific functions which are being used in my project
 # -----------------------------------------------------
@@ -686,6 +730,9 @@ def example_visualize_defects_loop_lack(n, is_wrap=True,
     for i, loop in enumerate(loops):
         loop.update_smoothen(window_length=loop_window_length) 
         loop.figure_init(tube_color=(0,0,0), is_new=False, is_wrap=is_wrap)
+
+
+
 
 
 # ---------------------------------------
