@@ -19,7 +19,7 @@ address = get_mainpath(DENSITY, '*', '*', '*')
 tobe_list = glob.glob( str(address) + '/dump/*.data' )
 par_list = []
 for item in tobe_list:
-    item = re.findall(r"\d*\.*\d+", item)[1:4] #! format
+    item = re.findall(r"\d*\.*\d+", item)[-4:-1] #! format
     if item not in par_list:
         par_list.append(item)
         print(int(item[0]), float(item[1]), int(item[2]))
