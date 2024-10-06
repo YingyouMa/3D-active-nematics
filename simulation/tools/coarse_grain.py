@@ -2,8 +2,14 @@ import numpy as np
 import glob
 import re
 import argparse
+from pathlib import Path
+
+ROOT = str(Path(__file__).resolve().parent.parent)
+import sys
+sys.path.append(ROOT)
 
 from Nematics3D.coarse import coarse_one_frame
+from pathname import get_mainpath, get_coarsepath, get_diagpath
 
 
 # Constants of filaments
@@ -12,9 +18,8 @@ NATOMS 		= 50
 
 SDTN		= 0.9 	# threshold of space difference, normalized in box width
 
-
 def main(
-        address, stiffness, activity, name, suffix='.data', 
+        address, stiffness, activity, name, save_path, diag_path, suffix='.data', 
         N_raw=300, N_trunc=128, sdtn=0.9,
         if_IFFT=True, sig=2, N_out=128,
         if_diag=True
@@ -23,17 +28,16 @@ def main(
     print(f'... Start coarse graining k={stiffness} a={activity} name={name}')
     
     # Find all the dump files
-    dump_path = address + 'dump/'
+    dump_path = address + '/dump/'
     files = glob.glob(dump_path + '*' + suffix)
     frames = np.array([int(re.findall(r'\d+', file)[-1]) for file in files])
     frames = np.sort(frames)[::-1]
 
     for frame in frames:
         coarse_one_frame(
-                    address, stiffness, activity, name, frame, suffix=suffix, 
+                    address, save_path, stiffness, activity, name, frame, diag_path=diag_path, suffix=suffix, 
                     N_raw=N_raw, N_trunc=N_trunc, sdtn=sdtn,
                     if_IFFT=if_IFFT, sig=sig, N_out=N_out,
-                    if_diag=if_diag
                     )
 
 
@@ -58,21 +62,26 @@ if args.k == None:
     print('No parameters input. Use the default parameters provided by the program instead.')
     k       = 100
     a       = 1.0
-    name    = 100
-    address = f"../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
+    name    = 2
+    address = str(get_mainpath(DENSITY, k, a, name))
+    save_path = str(get_coarsepath(DENSITY, k, a, name))
+    diag_path = str(get_diagpath(DENSITY, k, a, name))
     suffix  = ".data"
     N_raw   = 300
     N_trunc = 128
     sdtn    = 0.9
     if_IFFT = True
     sig     = 2
-    N_out   = 400
+    N_out   = 128
     if_diag = True
 else:
     k       = args.k
     a       = args.a
     name    = args.name
-    address = f"../../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
+    address = str(get_mainpath(DENSITY, k, a, name))
+    save_path = str(get_coarsepath(DENSITY, k, a, name))
+    diag_path = str(get_diagpath(DENSITY, k, a, name))
+    suffix  = ".data"
     suffix  = args.suffix
     N_raw   = args.N_raw
     N_trunc = args.N_trunc
@@ -83,7 +92,7 @@ else:
     if_diag = args.if_diag
 
 main(
-    address, k, a, name, suffix=suffix,
+    address, k, a, name, save_path, diag_path, suffix=suffix,
     N_raw=N_raw, N_trunc=N_trunc, sdtn=sdtn,
     if_IFFT=if_IFFT, N_out=N_out, sig=sig,
     if_diag=if_diag

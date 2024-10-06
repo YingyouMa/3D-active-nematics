@@ -101,8 +101,8 @@ def main(parameter, name):
         archive_intv = max_step
 
     job_name = f"Nematics3D_k{stiffness}_a{activity}_n{name}"
-    mainpath = get_mainpath(DENSITY, stiffness, activity, name)
-    path = ROOT / mainpath
+    path = get_mainpath(DENSITY, stiffness, activity, name)
+
 
     print(f"Checking job {job_name}")
 

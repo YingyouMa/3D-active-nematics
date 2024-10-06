@@ -166,16 +166,16 @@ def IFFT_nematics(Fd, Fq, N_out=0):
 # ---------------------------------------------------------------------------
 
 def coarse_one_frame(
-                    address, stiffness, activity, name, frame, suffix='.data', 
+                    address, save_path,
+                    stiffness, activity, name, frame, suffix='.data', 
                     N_raw=300, N_trunc=128, sdtn=0.9,
                     if_IFFT=True, sig=2, N_out=128,
-                    if_diag=True
+                    diag_path=0
                     ):
 
     start = time.time()
 
-    path = address + 'dump/'
-    save_path = address+'coarse/'
+    path = address + '/dump/'
 
     N_raw = np.array([N_raw]).reshape(-1)
     if len(N_raw) == 1:
@@ -225,7 +225,7 @@ def coarse_one_frame(
 
     if if_IFFT == True:
 
-        Path(save_path+f'result_{N_out}').mkdir(exist_ok=True)
+        Path(save_path+f'/result_{N_out}').mkdir(exist_ok=True)
 
         Fd = kernal_fft(F_density, sig, LX)
         Fq = kernal_fft(F_qtensor, sig, LX)
@@ -239,14 +239,14 @@ def coarse_one_frame(
             fw.create_dataset('qtensor', data=qtensor)
             fw.create_dataset('sigma', data=sig)
 
-        if if_diag == True:
+        if diag_path != 0:
 
-            Path( address + f"/diagonal/{N_out}/" ).mkdir(exist_ok = True, parents=True)
+            Path( diag_path + f"/{N_out}/" ).mkdir(exist_ok = True, parents=True)
 
             S, n = diagonalizeQ(qtensor)
 
-            np.save( address + f"/diagonal/{N_out}/S_{frame}.npy", S )
-            np.save( address + f"/diagonal/{N_out}/n_{frame}.npy", n )
+            np.save( diag_path + f"/{N_out}/S_{frame}.npy", S )
+            np.save( diag_path + f"/{N_out}/n_{frame}.npy", n )
     
     # Zip the analyzed file
     unzip_file  = path + str(frame) + suffix
