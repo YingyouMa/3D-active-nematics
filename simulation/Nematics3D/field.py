@@ -77,20 +77,20 @@ def find_mirror_point_boundary(point, box_size_periodic=[np.inf, np.inf, np.inf]
     return mirror_points
 
 
-def add_periodic_boundary(data, boundary_periodic=0):
+def add_periodic_boundary(data, is_boundary_periodic=0):
 
-    if np.sum(boundary_periodic) != 0:
+    if np.sum(is_boundary_periodic) != 0:
         N, M, L = np.shape(data)[:3]
-        output = np.zeros( (N+boundary_periodic[0],
-                            M+boundary_periodic[1],
-                            L+boundary_periodic[2],
+        output = np.zeros( (N+is_boundary_periodic[0],
+                            M+is_boundary_periodic[1],
+                            L+is_boundary_periodic[2],
                             *(np.shape(data)[3:]) ))
         output[:N, :M, :L] = data
-        if boundary_periodic[0] == True:
+        if is_boundary_periodic[0] == True:
             output[N] = output[0]
-        if boundary_periodic[1] == True:
+        if is_boundary_periodic[1] == True:
             output[:, M] = output[:, 0]
-        if boundary_periodic[2] == True:
+        if is_boundary_periodic[2] == True:
             output[:,:,L] = output[:,:,0] 
     else:
         output = data
@@ -227,26 +227,26 @@ def diagonalizeQ(qtensor):
     return S, n
 
 
-def getQ(n, S=0, boundary_periodic=0):
+def getQ(n, S=0, is_boundary_periodic=0):
 
-    boundary_periodic = array_from_single_or_list(boundary_periodic)
+    is_boundary_periodic = array_from_single_or_list(is_boundary_periodic)
 
     Q = np.einsum('...i, ...j -> ...ij', n, n)
     Q = Q - np.diag((1,1,1))/3
     if not isinstance(S, int):
         Q = np.einsum('..., ...ij -> ...ij', S, Q)
 
-    Q = add_periodic_boundary(Q, boundary_periodic=boundary_periodic) 
+    Q = add_periodic_boundary(Q, is_boundary_periodic=is_boundary_periodic) 
     
     return Q
 
 
 @time_record
-def interpolateQ(n, result_points, S=0, boundary_periodic=0):
+def interpolateQ(n, result_points, S=0, is_boundary_periodic=0):
 
     from scipy.interpolate import interpn
 
-    init_Q = getQ(n, S=S, boundary_periodic=boundary_periodic)
+    init_Q = getQ(n, S=S, is_boundary_periodic=is_boundary_periodic)
 
     init_shape = np.array(np.shape(init_Q)[:3])
     init_points = (
@@ -266,7 +266,7 @@ def interpolateQ(n, result_points, S=0, boundary_periodic=0):
 
 
 @time_record
-def interpolateQ_all(n, add_point, S=0, boundary_periodic=0):
+def interpolateQ_all(n, add_point, S=0, is_boundary_periodic=0):
 
     add_point = array_from_single_or_list(add_point) 
     init_shape = np.array(np.shape(n)[:3])
@@ -279,7 +279,7 @@ def interpolateQ_all(n, add_point, S=0, boundary_periodic=0):
         )))
     result_points = result_points.reshape((*result_shape,3))
 
-    result_Q = interpolateQ(n, result_points, S=S, boundary_periodic=boundary_periodic)
+    result_Q = interpolateQ(n, result_points, S=S, is_boundary_periodic=is_boundary_periodic)
 
     return result_Q 
 
@@ -340,7 +340,7 @@ def subbox_slices(min_vertex, max_vertex,
                 Default is [-np.inf, -np.inf, -np.inf], no limit in minimum
 
     max_limit : array of three floats, optional
-                Ihe limit of aximum value in each dimension.
+                Ihe limit of maximum value in each dimension.
                 If the expanded subbox breaks the limit, it will stay at the limit.
                 For example, if max_limit = [50, 75, 100], and the max_vertex of the expanded subbox is [40, 90, 90],
                 the min_vertex will turn to be [40, 75, 90].
@@ -385,7 +385,6 @@ def subbox_slices(min_vertex, max_vertex,
     else:
         N, M, L = box_grid_size
 
-    print(N,M,L)
     sl0 = np.array(range(xmin, xmax+1)).reshape(-1,1, 1)%N
     sl1 = np.array(range(ymin, ymax+1)).reshape(1,-1, 1)%M
     sl2 = np.array(range(zmin, zmax+1)).reshape(1,1,-1)%L
@@ -407,7 +406,7 @@ def local_box_diagonalize(n_box):
     # Diagonalisation and sort the eigenvalues.
     eigval, eigvec = np.linalg.eig(Q)
     eigvec = np.transpose(eigvec)
-    eigidx = np.argsort(eigval)
+    eigidx = np.argsort(eigval)[::-1]
     eigval = eigval[eigidx]
     eigvec = eigvec[eigidx]
 
@@ -439,7 +438,7 @@ def interpolate_subbox(vertex_indices, axes_unit, loop_box, n, S, whole_box_grid
     box = np.einsum('ai, ij -> aj', box[:,:3], (axes.T/num_scale).T)
     box = box + vertex_indices[0]
 
-    sl0, sl1, sl2, ortho_box = select_subbox(loop_box, whole_box_grid_size,
+    sl0, sl1, sl2, ortho_box = subbox_slices(loop_box, whole_box_grid_size,
                                               margin_ratio=margin_ratio)
     n_box = n[sl0,sl1,sl2]
     S_box = S[sl0,sl1,sl2]
@@ -585,6 +584,64 @@ def n_color_func_default(n):
 
     return scalars
 
+def visualize_n(n, loc=None, 
+                        n_length=1, n_shape='cylinder', n_opacity=1, n_color=(0,0,0), n_width=1):
+    
+    from mayavi import mlab
+    
+    num = np.shape(n)[0]
+    if loc is None:
+        loc = np.zeros((num,3))
+    elif np.size(loc) == 3:
+        loc = np.broadcast_to(loc, (num,3))
+    
+    cord1 = loc[:,0] - n[..., 0]*n_length/2
+    cord2 = loc[:,1] - n[..., 1]*n_length/2
+    cord3 = loc[:,2] - n[..., 2]*n_length/2
+
+    nx = n[..., 0]
+    ny = n[..., 1]
+    nz = n[..., 2]
+
+    scalars = 0
+    if isinstance(n_color, str):
+        if n_color == 'default':
+            scalars = n_color_func_default(n)
+            object = mlab.quiver3d(
+                    cord1, cord2, cord3,
+                    nx, ny, nz,
+                    mode=n_shape,
+                    scalars=scalars,
+                    scale_factor=n_length,
+                    opacity=n_opacity,
+                    line_width=n_width,
+                    color=tuple(n_color)
+                    )
+            object.glyph.color_mode = 'color_by_scalar'
+        if n_color == 'immerse':
+            for i in range(len(nx)):
+                object = mlab.quiver3d(
+                        cord1[i], cord2[i], cord3[i],
+                        nx[i], ny[i], nz[i],
+                        mode=n_shape,
+                        scale_factor=n_length,
+                        opacity=n_opacity,
+                        line_width=n_width,
+                        color=tuple(n_color[i])
+                        )
+    if isinstance(n_color, (tuple, list)):
+        object = mlab.quiver3d(
+                cord1, cord2, cord3,
+                nx, ny, nz,
+                mode=n_shape,
+                scale_factor=n_length,
+                opacity=n_opacity,
+                line_width=n_width,
+                color=tuple(n_color)
+                )
+
+    return object, scalars
+
 # ---------------------------------------------------------------------------------
 # Visualize the diretors and defects (or the low S region) with given n and S field
 # ---------------------------------------------------------------------------------
@@ -597,7 +654,7 @@ def visualize_nematics_field(n=[0], S=[0], defect_indices=None,
                              S_threshold=0.45, S_opacity=1, S_plot_params={},
                              S_if_colorbar=True, S_colorbar_params={}, S_colorbar_range=(0,1),
                              defect_opacity=0.8, defect_size_ratio_to_dist=2, defect_color=(0,0,0),
-                             boundary_periodic=False, defect_threshold=0, defect_print_time=False,
+                             is_boundary_periodic=False, defect_threshold=0, defect_print_time=False,
                              new_figure=True, bgcolor=(1,1,1), fgcolor=(0,0,0), if_axes=False,
                              defect_n_opacity=-1, n_if_color_immerse=False
                              ):
@@ -761,11 +818,11 @@ def visualize_nematics_field(n=[0], S=[0], defect_indices=None,
                                 Used to set the size of defect points.
                                 Default is 2.
 
-    boundary_periodic : bool, optional
+    is_boundary_periodic : bool, optional
                         If True, use periodic boundary conditions during defects detection. 
                         Default is False.
                         Warning: If only part of the box is selected by sub_space so that it will not have the periodic boundary condition,
-                        boundary_periodic will be reset to False automatically if it is initially True.
+                        is_boundary_periodic will be reset to False automatically if it is initially True.
 
     defect_threshold : float, optional
                        Threshold for detecting defects. 
@@ -890,15 +947,15 @@ def visualize_nematics_field(n=[0], S=[0], defect_indices=None,
             print('\nNo defect_indices input.')
             print('Start to detect defect automatically.')
 
-            if sub_space != 1 and boundary_periodic == True:
+            if sub_space != 1 and is_boundary_periodic == True:
                 print('\nWarning: The periodic boundary condition is only possible for the whole box')
                 print('Automatically deactivate the periodic boundary condition')
                 print('Read the document for more information.')
-                boundary_periodic = False
+                is_boundary_periodic = False
 
             # find defects
             print('\nDetecting defects')
-            defect_indices = defect_detect(n[ind], boundary_periodic=boundary_periodic, threshold=defect_threshold,
+            defect_indices = defect_detect(n[ind], is_boundary_periodic=is_boundary_periodic, threshold=defect_threshold,
                                         print_time=defect_print_time)
             print('Finished!')
 
@@ -1192,7 +1249,7 @@ def visualize_nematics_field_old(n=[0], S=[0],
                              S_threshold=0.45, S_opacity=1, S_plot_params={},
                              S_if_colorbar=True, S_colorbar_params={}, S_colorbar_range=(0,1),
                              defect_opacity=0.8, defect_size_ratio_to_dist=2, defect_color=(0,0,0),
-                             boundary_periodic=False, defect_threshold=0, defect_print_time=False,
+                             is_boundary_periodic=False, defect_threshold=0, defect_print_time=False,
                              new_figure=True, bgcolor=(1,1,1), fgcolor=(0,0,0), if_axes=False,
                              ):
 
@@ -1349,11 +1406,11 @@ def visualize_nematics_field_old(n=[0], S=[0],
                                 Used to set the size of defect points.
                                 Default is 2.
 
-    boundary_periodic : bool, optional
+    is_boundary_periodic : bool, optional
                         If True, use periodic boundary conditions during defects detection. 
                         Default is False.
                         Warning: If only part of the box is selected by sub_space so that it will not have the periodic boundary condition,
-                        boundary_periodic will be reset to False automatically if it is initially True.
+                        is_boundary_periodic will be reset to False automatically if it is initially True.
 
     defect_threshold : float, optional
                        Threshold for detecting defects. 
@@ -1459,16 +1516,16 @@ def visualize_nematics_field_old(n=[0], S=[0],
     #plot defects
     if plotdefects:
 
-        if sub_space != 1 and boundary_periodic == True:
+        if sub_space != 1 and is_boundary_periodic == True:
             print('\nWarning: The periodic boundary condition is only possible for the whole box')
             print('Automatically deactivate the periodic boundary condition')
             print('Read the document for more information.')
-            boundary_periodic = False
+            is_boundary_periodic = False
 
         # find defects
         from .disclination import defect_detect
         print('\nDetecting defects')
-        defect_indices = defect_detect(n[ind], boundary_periodic=boundary_periodic, threshold=defect_threshold,
+        defect_indices = defect_detect(n[ind], is_boundary_periodic=is_boundary_periodic, threshold=defect_threshold,
                                        print_time=defect_print_time)
         print('Finished!')
 

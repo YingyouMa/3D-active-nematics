@@ -1,8 +1,8 @@
 import numpy as np 
 
-from ..disclination import add_mid_points_disclination, calc_coord, get_plane, sort_line_indices
+from ..disclination import add_mid_points_disclination, calc_coord, defect_rotation
 from .smoothened_line import SmoothenedLine
-from ..general import array_from_single_or_list
+from ..general import array_from_single_or_list, sort_line_indices, get_plane, get_tangent
 
 class DisclinationLine:
     """
@@ -50,15 +50,9 @@ class DisclinationLine:
 
         box_size_periodic = array_from_single_or_list(box_size_periodic)
 
-        self._defect_indices = defect_indices
-        self._origin = origin
-        self._space_index_ratio = array_from_single_or_list(space_index_ratio)
-        self._box_size_periodic = box_size_periodic
-        self._box_size_periodic_coord = box_size_periodic * self._space_index_ratio
-        self._defect_num = np.shape(self._defect_indices)[0]
-
         if np.linalg.norm(defect_indices[0] - defect_indices[-1]) == 0:
             self._end2end_category = 'loop'
+            self._defect_indices = defect_indices[:-1]
         else:
             defect1 = defect_indices[0].copy()
             defect2 = defect_indices[-1].copy()
@@ -66,9 +60,18 @@ class DisclinationLine:
             defect2 = np.where(box_size_periodic==np.inf, defect2, defect2%box_size_periodic)
             if np.linalg.norm(defect1 - defect2) == 0:
                 self._end2end_category = 'cross'
-                
+                self._defect_indices = defect_indices[:-1]
             else:
                 self._end2end_category = 'seg'
+                self._defect_indices = defect_indices
+
+        self._origin = origin
+        self._space_index_ratio = array_from_single_or_list(space_index_ratio)
+        self._box_size_periodic = box_size_periodic
+        self._box_size_periodic_coord = box_size_periodic * self._space_index_ratio
+        self._defect_num = np.shape(self._defect_indices)[0]
+
+
         
         if len(np.shape([space_index_ratio])) == 1:
             space_index_ratio = (space_index_ratio, space_index_ratio, space_index_ratio)
@@ -109,10 +112,59 @@ class DisclinationLine:
         output = SmoothenedLine(self._defect_coord, 
                                 window_ratio=window_ratio, window_length=window_length, 
                                 order=order, N_out_ratio=N_out_ratio, mode=smoothen_mode,
-                                is_keep_origin=False)
+                                is_keep_origin=False) 
         
         self._defect_coord_smooth_obj = output
         self._defect_coord_smooth = output._output
+
+    def update_rotation(self, n, num_shell=1):
+        self._Omega = defect_rotation(self._defect_indices, n, 
+                                      num_shell=num_shell, box_size_periodic=self._box_size_periodic)
+        return self._Omega
+    
+    def update_gamma(self, n=0, num_shell=1):
+
+        if hasattr(self, '_Omega'):
+            Omega = self._Omega
+        else:
+            Omega = self.update_rotation(n, num_shell=num_shell)
+
+        if hasattr(self, '_norm'):
+            norm = self._norm
+        else:
+            norm = self.update_norm()
+
+        norm = np.broadcast_to(norm, (self._defect_num,3))
+        self._gamma = np.arccos(np.abs(np.einsum('ia, ia -> i', norm, Omega))) / np.pi * 180
+
+        return self._gamma
+    
+    def update_tangent(self):
+        if self._end2end_category in ['loop', 'cross']:
+            self._tangent = get_tangent(self._defect_indices, is_periodic=True)
+        else:
+            self._tangent = get_tangent(self._defect_indices, is_periodic=False)
+        return self._tangent
+    
+    def update_beta(self, n=0):
+
+        if hasattr(self, '_Omega'):
+            Omega = self._Omega
+        else:
+            Omega = self.update_rotation(n)
+
+        if hasattr(self, '_tangent'):
+            tangent = self._tangent
+        else:
+            tangent = self.update_tangent()
+
+        self._beta = np.arccos(np.einsum('ia, ia -> i', tangent, Omega)) / np.pi * 180
+
+        return self._beta
+
+        
+
+        
 
     def dict_figure_simplify_generate(self):
         result = {'bgcolor':        (lambda: self.figure.parent.parent.parent.parent.parent.scene, 'background'),

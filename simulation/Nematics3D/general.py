@@ -105,7 +105,7 @@ def nearest_neighbor_order(points):
     return order
 
 
-def get_square(size, num, dim=2):
+def get_square_each(size, num, dim=2):
 
     edge1 = [   np.linspace(0, size, num),      np.zeros(num)               ]
     edge2 = [   np.zeros(num) + size,           np.linspace(0, size, num)   ]
@@ -118,6 +118,26 @@ def get_square(size, num, dim=2):
 
     if dim == 3:
         result = np.hstack([np.array([np.zeros(len(line1))]).T, result])
+
+    return result
+
+
+def get_square(size_list, num_list, origin_list=[[0,0,0]], dim=2):
+
+    if isinstance(size_list, int):
+        size_list = np.array([size_list])
+    if isinstance(num_list, int):
+        num_list = np.array([num_list])
+
+    if not len(size_list) == len(num_list) == np.shape(origin_list)[0]:
+        raise NameError("length of size_list and num_list must be the same")
+    
+    result = np.empty((0,3))
+    
+    for i in range(len(size_list)):
+        temp = get_square_each(size_list[i], num_list[i], dim)
+        temp = temp + np.broadcast_to(origin_list[i], np.shape(temp))
+        result = np.vstack((result, temp))
 
     return result
 
@@ -167,6 +187,17 @@ def get_plane(points):
 
     return normal_vector
 
+def get_rotation_axis(vectors):
+
+    cross_bulk = np.cross(vectors[:, :-1], vectors[:, 1:], axis=-1)
+    cross_end = np.cross(vectors[:, -1], vectors[:, 0], axis=-1)
+    cross_all = np.concatenate([cross_bulk, cross_end[:, np.newaxis]], axis=1)
+    cross_mean = np.mean(cross_all, axis=1)
+
+    cross_mean = cross_mean / np.linalg.norm(cross_mean, axis=1, keepdims=True)
+
+    return cross_mean
+
 
 def make_hash_table(input):
 
@@ -192,3 +223,19 @@ def search_in_reservoir(items, reservoir, is_reservoir_hash=False):
         result[idx] = reservoir_hash_table[item]
 
     return result
+
+
+def get_tangent(points, is_periodic=True, is_norm=True):
+
+    if is_periodic:
+        tangents = (np.roll(points, -1, axis=0) - np.roll(points, 1, axis=0)) / 2
+    else:
+        tangents = np.zeros_like(points)
+        tangents[1:-1] = (points[2:] - points[:-2]) / 2
+        tangents[0] = points[1] - points[0]   
+        tangents[-1] = points[-1] - points[-2] 
+    
+    if is_norm:
+        tangents /= np.linalg.norm(tangents, axis=1, keepdims=True)
+
+    return tangents
