@@ -10,3 +10,9 @@ def get_coarsepath(density, stiffness, activity, name):
 
 def get_diagpath(density, stiffness, activity, name):
     return ROOT / f"diag/density_{density:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}/"
+
+def get_analysispath(density, stiffness, activity, name):
+    return ROOT / f"analysis/density_{density:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}/"
+
+def get_figpath(density, stiffness, activity, name):
+    return ROOT / f"figure/"

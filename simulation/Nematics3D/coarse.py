@@ -137,28 +137,32 @@ def truncate_rfft_coefficients(F, new_NX, new_NY, new_NZ):
 # IFFT the density and Q tensor field
 # -----------------------------------
 
-def IFFT_nematics(Fd, Fq, N_out=0):
+def IFFT_nematics(Fq, Fd=0, N_out=0, if_make_traceless=True):
     
-    N_trunc = Fd.shape[-3]
+    N_trunc = Fq.shape[-3]
 
     if N_out == 0:
         N_out = N_trunc
         
     xpad = int((N_out-N_trunc)/2)
     ratio = (N_trunc + 2*xpad) / N_trunc
-     
-    Fd = np.pad(Fd, ((xpad, xpad), (xpad, xpad), (0, xpad)))
-    Fd = np.fft.fftshift(Fd, axes=(-3,-2))
-    den = np.fft.irfftn(Fd) * ratio**3
-    
+
     Fq = np.pad(Fq, ((0,0), (xpad, xpad), (xpad, xpad), (0, xpad)))
     Fq = np.fft.fftshift(Fq, axes=(-3,-2))
     qtensor = np.fft.irfftn(Fq, axes=(-3,-2,-1)) * ratio**3
-    qtensor /= den[None,...]
-    qtensor[0] -= 1/3
-    qtensor[3] -= 1/3
+    if if_make_traceless==True:
+        qtensor[0] -= 1/3
+        qtensor[3] -= 1/3
 
-    return den, qtensor
+    if isinstance(Fd, int) == False:
+        Fd = np.pad(Fd, ((xpad, xpad), (xpad, xpad), (0, xpad)))
+        Fd = np.fft.fftshift(Fd, axes=(-3,-2))
+        den = np.fft.irfftn(Fd) * ratio**3
+        qtensor /= den[None,...]
+    else:
+        den = None
+
+    return qtensor, den
 
 
 # ---------------------------------------------------------------------------
@@ -230,7 +234,7 @@ def coarse_one_frame(
         Fd = kernal_fft(F_density, sig, LX)
         Fq = kernal_fft(F_qtensor, sig, LX)
 
-        den, qtensor = IFFT_nematics(Fd, Fq, N_out=N_out)
+        qtensor, den = IFFT_nematics(Fq, Fd=Fd, N_out=N_out)
         qtensor = qtensor.transpose((1,2,3,0))
         
 

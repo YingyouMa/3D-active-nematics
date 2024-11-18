@@ -635,6 +635,7 @@ def is_loop_new(lines, loop_indices,
 @time_record
 def example_visualize_defects(lines, is_wrap=True, min_length=50, window_length=61, 
                               opacity=1, radius=0.5,
+                              specular=1, specular_col=(1,1,1), specular_pow=11,
                               outline_extent=[0,128,0,128,0,128]):
     
     from mayavi import mlab
@@ -651,7 +652,7 @@ def example_visualize_defects(lines, is_wrap=True, min_length=50, window_length=
         line.update_smoothen(window_length=window_length)
         line.figure_init(tube_color=tuple(lines_color[i]), is_new=1-bool(i), is_wrap=is_wrap,
                          tube_opacity=opacity, tube_radius=radius)
-        
+        line.figure_update(tube_spec=specular, tube_spec_col=specular_col, tube_spec_pow=specular_pow)
     figure = mlab.gcf()
     mlab.outline(figure=figure, color=(0,0,0), extent=outline_extent, line_width=4)
     mlab.view(distance=450)

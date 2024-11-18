@@ -101,6 +101,10 @@ class DisclinationLine:
     def update_center(self):
         self._center = np.average(self._defect_indices, axis=0)
         return self._center
+    
+    def update_length(self):
+        self._length = np.linalg.norm(self._defect_coord[1:] - self._defect_coord[:-1], axis=-1).sum()
+        return self._length
 
     def update_smoothen(self,
                         window_ratio=None, window_length=21, order=3, N_out_ratio=3):
@@ -162,18 +166,6 @@ class DisclinationLine:
 
         return self._beta
 
-        
-
-        
-
-    def dict_figure_simplify_generate(self):
-        result = {'bgcolor':        (lambda: self.figure.parent.parent.parent.parent.parent.scene, 'background'),
-                  'tube_radius':    (lambda: self.figure.parent.parent.filter, 'radius'),
-                  'tube_opacity':   (lambda: self.figure.actor.property, 'opacity'),
-                  'tube_sides':     (lambda: self.figure.parent.parent.filter, 'number_of_sides'),
-                  'tube_color':     (lambda: self.figure.actor.actor.property, 'color')
-                        }
-        return result
 
     def figure_init(self, is_wrap=False,
                     tube_radius=0.5, tube_opacity=0.5, tube_color=(0.5,0.5,0.5), tube_sides=6,
@@ -195,7 +187,8 @@ class DisclinationLine:
 
         if not is_wrap:
             figure = mlab.plot3d(*(line_coord.T), 
-                                    tube_radius=tube_radius, opacity=tube_opacity, color=tube_color, tube_sides=tube_sides)
+                                    tube_radius=tube_radius, opacity=tube_opacity, color=tube_color, 
+                                    tube_sides=tube_sides)
             figures = [figure]
         else:
 
@@ -223,7 +216,10 @@ class DisclinationLine:
                                 'tube_radius':  (lambda: self._figures[idx].parent.parent.filter, 'radius'),
                                 'tube_opacity': (lambda: self._figures[idx].actor.property, 'opacity'),
                                 'tube_sides':   (lambda: self._figures[idx].parent.parent.filter, 'number_of_sides'),
-                                'tube_color':   (lambda: self._figures[idx].actor.actor.property, 'color')
+                                'tube_color':   (lambda: self._figures[idx].actor.property, 'color'),
+                                'tube_spec':    (lambda: self._figures[idx].actor.property, 'specular'),
+                                'tube_spec_col': (lambda: self._figures[idx].actor.property, 'specular_color'),
+                                'tube_spec_pow': (lambda: self._figures[idx].actor.property, 'specular_power')
                                         }
         return dict_figure_simplify
 

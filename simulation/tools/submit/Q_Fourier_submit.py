@@ -8,6 +8,11 @@ import re
 import pandas as pd
 import numpy as np
 
+ROOT = str(Path(__file__).resolve().parent.parent)
+import sys
+sys.path.append(ROOT)
+from pathname import *
+
 script_directory = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_directory)
 os.chdir('..')
@@ -42,7 +47,7 @@ for item in tobe_list:
         else:
 
             address = f"../data/density_{DENSITY:0.2f}/stiffness_{stiffness}/activity_{activity}/{name}/"
-            out_path = address + '/analysis/k_instability/'
+            out_path = str(get_analysispath(DENSITY, stiffness, activity, name)) + '/k_instability/'
 
             files = glob.glob(f'{address}/dump/*')
 

@@ -9,12 +9,15 @@ import numpy as np
 import h5py
 import matplotlib.pyplot as plt
 
+ROOT = str(Path(__file__).resolve().parent.parent)
+import sys
+sys.path.append(ROOT)
+from pathname import *
+
 loc1='upper right'
 loc2='lower left'
 
 DENSITY = 0.7
-
-Path('../figures/k_instability').mkdir(exist_ok=True, parents=True)
 
 def analyze_fft(data, N=3):
     
@@ -37,13 +40,15 @@ def analyze_fft(data, N=3):
     
     return result
 
-def analyze(address, frame, size, N=3):
+def analyze(stiffness, activity, frame, size, N=3):
     start = time.time()
     
-    with h5py.File(f'{address}/coarse/result_{size}/{frame}.h5py', 'r') as f:
+    path_coarse = str(get_coarsepath(DENSITY, stiffness, activity, name))
+    with h5py.File(f'{path_coarse}/coarse/result_{size}/{frame}.h5py', 'r') as f:
         qtensor = f['qtensor'][...]
 
-    S = np.load( address + f'/diagonal/{size}/S_{frame}.npy')
+    path_diag = str(get_diagpath(DENSITY, stiffness, activity, name)) + f'/{size}/'
+    S = np.load( path_diag + f'/S_{frame}.npy')
     
     # 5: Qxx, Qxy, Qxz, Qyy, Qyz
     # N: Nth coefficients
@@ -55,35 +60,39 @@ def analyze(address, frame, size, N=3):
     print(frame, round(time.time()-start, 2), 's')
     return result, np.average(S)
 
-def main(address, stiffness, activity, name, N=3, if_cover=False):
+def main(stiffness, activity, name, N=3, if_cover=False):
 
-    files = glob.glob(f'{address}/diagonal/128/S_*.npy')
+    path_diag = str(get_diagpath(DENSITY, stiffness, activity, name)) + '/128/'
+    files = glob.glob(path_diag + '/S_*.npy')
     frames = np.array([int(re.findall(r'\d+', file)[-1]) for file in files])
     frames = np.sort(frames)
 
     result = np.zeros((len(frames), 5, N, 3))
     S_mean = np.zeros(len(frames))
 
-    out_path = address + '/analysis/k_instability/'
+    path_out = str(get_analysispath(DENSITY, stiffness, activity, name)) + '/k_instability/'
+    path_fig = str(get_figpath(DENSITY, stiffness, activity, name)) + '/k_instability/'
+    
 
-    if if_cover == False and len(glob.glob(out_path+'/frames.npy')) != 0:
+    if if_cover == False and len(glob.glob(path_out+'/frames.npy')) != 0:
         print('Found previous data')
-        frame_old = np.load(out_path+'/frames.npy')
-        result[:len(frame_old)] = np.load(out_path+'/result.npy')
-        S_mean[:len(frame_old)] = np.load(out_path+'/S_mean.npy')
+        frame_old = np.load(path_out+'/frames.npy')
+        result[:len(frame_old)] = np.load(path_out+'/result.npy')
+        S_mean[:len(frame_old)] = np.load(path_out+'/S_mean.npy')
     else:
         frame_old = []
 
     for i in range(len(frame_old), len(frames)):
         frame = frames[i]
-        result[i], S_mean[i] = analyze(address, frame, 128, N=N)
+        result[i], S_mean[i] = analyze(stiffness, activity, frame, 128, N=N)
         print(f'{i+1-len(frame_old)}/{len(frames)-len(frame_old)}')
 
-    Path(out_path).mkdir(exist_ok=True, parents=True)
+    Path(path_out).mkdir(exist_ok=True, parents=True)
+    Path(path_fig).mkdir(exist_ok=True, parents=True)
 
-    np.save(out_path+'/result', result)
-    np.save(out_path+'/S_mean', S_mean)
-    np.save(out_path+'/frames', frames)
+    np.save(path_out+'/result', result)
+    np.save(path_out+'/S_mean', S_mean)
+    np.save(path_out+'/frames', frames)
 
     angle_mean = np.sum( result[..., 0] * result[..., 2] / np.sum(result[..., 2], axis=-1, keepdims=True), axis=-1)
     temp = result[:,1:3] # only Q_xy and Q_xz
@@ -104,8 +113,7 @@ def main(address, stiffness, activity, name, N=3, if_cover=False):
     ax.legend(lns, labs, loc=loc1)
     ax.set_title('value of largest Fourier coefficient')
     ax.set_xlabel('time')
-    fig.savefig(f'../analysis/figures/k_instability/n{name}_k{stiffness}_a{activity}_Fourier.jpg')
-    fig.savefig(out_path+'/Fourier.jpg')
+    fig.savefig( path_fig + f'/n{name}_k{stiffness}_a{activity}_Fourier.jpg')
     plt.close(fig)
     
     
@@ -121,8 +129,7 @@ def main(address, stiffness, activity, name, N=3, if_cover=False):
     ax.legend(lns, labs, loc=loc2)
     ax.set_title(r'$\bar{\theta}$')
     ax.set_xlabel('time')
-    fig.savefig(f'../analysis/figures/k_instability/n{name}_k{stiffness}_a{activity}_theta.jpg')
-    fig.savefig(out_path+'/theta.jpg')
+    fig.savefig( path_fig + f'/n{name}_k{stiffness}_a{activity}_theta.jpg')
     plt.close(fig)
 
 # Input Parameters
@@ -141,14 +148,12 @@ if args.k == None:
     name                = 1
     N                   = 3
     if_cover            = True
-    address             = f"../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
 else:
     k                   = args.k
     a                   = args.a
     name                = args.name 
     N                   = args.N
     if_cover            = args.cover
-    address             = f"../data/density_{DENSITY:0.2f}/stiffness_{k}/activity_{a}/{name}/"
 
-main(address, k, a, name, N=N, if_cover=if_cover)
+main(k, a, name, N=N, if_cover=if_cover)
 

@@ -1848,3 +1848,14 @@
 #     result[indexz] = defectz
 
 #     return result
+
+# def defect_detect_precise(n, S=0, defect_indices=0,
+#                           threshold1=0.5, threshold2=-0.9, is_boundary_periodic=0, planes=[1,1,1], num_add=3
+#                           ):
+
+#     if isinstance(defect_indices, int):
+#         defect_indices = defect_detect(n, threshold=threshold1, is_boundary_periodic=is_boundary_periodic, planes=planes)
+
+#     final_product = defect_vicinity_analysis(defect_indices, n, S=S, num_add=num_add, is_boundary_periodic=is_boundary_periodic)[0]
+
+#     return defect_indices[final_product<threshold2]
