@@ -1,7 +1,31 @@
 import numpy as np
 import time
 
-def array_from_single_or_list(input_data):       
+def array_from_single_or_list(input_data):
+    """
+    Converts a single number or a list-like structure of three elements into a NumPy array.
+
+    This function ensures that the output is always a NumPy array with three elements. 
+    If a single number is provided, it is replicated into an array of three identical values.
+    If a list, tuple, or NumPy array with exactly three elements is provided, 
+    it is converted to a NumPy array.
+    
+    Parameters
+    ----------
+    input_data : int, float, list, tuple, or numpy.ndarray
+                 - If an integer or float, it is expanded into an array of three identical values.
+                 - If a list, tuple, or NumPy array with exactly three elements, 
+                   it is converted into a NumPy array.
+    
+    Returns
+    -------
+    numpy.ndarray: A NumPy array of shape (3,) representing the processed input.
+    
+    Dependencies
+    ------------
+    - NumPy: 1.22.0
+    """   
+        
     if isinstance(input_data, (int, float)):  
         return np.array([input_data] * 3)    
     elif isinstance(input_data, (list, tuple, np.ndarray)) and len(input_data) == 3:

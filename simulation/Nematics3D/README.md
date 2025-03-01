@@ -30,7 +30,10 @@ For 3D visualization, it uses ```Mayavi```:
  - **mayavi**:  4.8.2
 
 Since I use the unpack operator in subscript notation, ```Python > 3.11``` is required. My personal setup:
- - **Python**:  3.12.9  
+ - **Python**:  3.12.9 
+
+In `coarse.py`, the output data of coarse-grained field is stored using package `h5py`. My personal setup:
+ - **h5py**:    3.13.0
 
 ## Installation
 Currently, I manually place the package in a specific location and import it using a custom path.  

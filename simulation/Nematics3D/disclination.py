@@ -28,7 +28,9 @@ def defect_detect(n_origin, threshold=0,
     '''
     Detect defects in a 3D director field.
     For each small loop formed by four neighoring grid points,
-    calculate the inner product between the beginning and end director.
+    calculate the inner product between the beginning and end director,
+    where we enforce the successive directors have the similar orientation to handle the nematic symmetry.
+    
 
     Parameters
     ----------
@@ -43,9 +45,9 @@ def defect_detect(n_origin, threshold=0,
                 Default is 0.
 
     is_boundary_periodic : bool, or array of three bools, optional
-                        Flag to indicate whether to consider periodic boundaries in each dimension. 
-                        If only one bool x is given, it is interprepted as (x,x,x)
-                        Default is 0, no consideration of periodic boundaries in any dimension
+                           Flag to indicate whether to consider periodic boundaries in each dimension. 
+                           If only one bool x is given, it is interprepted as (x,x,x)
+                           Default is 0, no consideration of periodic boundaries in any dimension
 
     planes : array, optional
              Indicate the direction of planes whose defects are about to be found.
@@ -67,9 +69,12 @@ def defect_detect(n_origin, threshold=0,
     -------
     defect_indices : numpy.ndarray, defect_num x 3
                      Array containing the indices of detected defects.
-                     In our current algorithm, for each defect's location, there must be one integer and two half-integers.
+                     In our current algorithm, for each defect's location, 
+                     there must be one integer and two half-integers.
                      The integer stands for the plane that the defect sits on.
                      #! defect_indices half integer
+
+    test_result : 
 
     Dependencies
     ------------
@@ -94,13 +99,19 @@ def defect_detect(n_origin, threshold=0,
 
     # X-direction
     if planes[0]:
+        # for each small loop, select the initial director
         here = n[:, 1:, :-1]
+        # enforce the next director to have the similar orientation with the initial director
         if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:, :-1, :-1], here))
         here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:, 1:, :-1])
+        # do it successively until the initial one
         if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:, 1:, 1:], here))
         here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:, 1:, 1:])
         if_parallel = np.sign(np.einsum('lmni, lmni -> lmn', n[:, :-1, 1:], here))
         here = np.einsum('lmn, lmni -> lmni',if_parallel, n[:, :-1, 1:])
+        # derive the inner product between the initial and last director
+        # if the inner product is smaller than the threshold, 
+        # the center of the loop is identified as a defect
         testx = np.einsum('lmni, lmni -> lmn', n[:, :-1, :-1], here)
         temp = np.array(np.where(testx<threshold)).transpose().astype(float)
         temp[:,1:] = temp[:,1:]+0.5

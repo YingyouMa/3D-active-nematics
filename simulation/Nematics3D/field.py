@@ -10,6 +10,138 @@ import numpy as np
 
 from .general import *
 
+def diagonalizeQ(qtensor):
+    #! biaxial as option
+    #! negative S
+    """
+    Diagonalization of the Q tensor in 3D nematic systems.
+
+    This function computes the uniaxial scalar order parameter (S) and the director (n)
+    by diagonalizing the given Q tensor. The Q tensor can be provided either in a 
+    3x3 matrix form or in a reduced 5-component representation. Currently, the function
+    does not compute biaxial order parameters but may be extended to do so in the future.
+
+    Algorithm Reference
+    -------------------
+    Matthew Peterson: 
+    https://github.com/YingyouMa/3D-active-nematics/blob/405c8d54d797cc39c1f14c82112cb43d304ef16c/reference/order_parameter_calculation.pdf
+
+    Parameters
+    ----------
+    qtensor : numpy.ndarray, (..., 5) or (..., 3, 3)
+              Tensor order parameter Q at each grid point.
+              - If in the 5-component representation, the components are:
+                qtensor[..., 0] = Q_xx, qtensor[..., 1] = Q_xy, qtensor[..., 2] = Q_xz,
+                qtensor[..., 3] = Q_yy, qtensor[..., 4] = Q_yz.
+                The missing Q_zz is reconstructed as `Q_zz = - (Q_xx + Q_yy)`.
+              - If in the 3x3 matrix form, the tensor components follow standard notation.
+
+    Returns
+    -------
+    S : numpy.ndarray, (...)
+        The largest eigenvalue of Q, representing the uniaxial scalar order parameter.
+        It is defined in [0,1]. It may be extended to include negative S.
+
+    n : numpy.ndarray, (..., 3)
+        The eigenvector corresponding to the largest eigenvalue, representing the director.
+
+    Dependencies
+    ------------
+    - NumPy: 1.22.0
+    """
+
+    # Deal with the input data of Q-tensor field
+    if np.all( np.shape(qtensor)[-2:] == np.array([3,3]) ):
+        Q = qtensor
+    elif np.shape(qtensor)[-1] == 5:
+        Q = np.zeros( (*(np.shape(qtensor)[:-1]), 3, 3)  )
+        Q[..., 0,0] = qtensor[..., 0]
+        Q[..., 0,1] = qtensor[..., 1]
+        Q[..., 0,2] = qtensor[..., 2]
+        Q[..., 1,0] = qtensor[..., 1]
+        Q[..., 1,1] = qtensor[..., 3]
+        Q[..., 1,2] = qtensor[..., 4]
+        Q[..., 2,0] = qtensor[..., 2]
+        Q[..., 2,1] = qtensor[..., 4]
+        Q[..., 2,2] = - Q[..., 0,0] - Q[..., 1,1]
+    else:
+        raise NameError(
+            "qtensor must have a shape of (..., 3, 3) or (..., 5)."
+            )
+
+    p = 0.5 * np.einsum('...ab, ...ba -> ...', Q, Q)
+    q = np.linalg.det(Q)
+    r = 2 * np.sqrt( p / 3 )
+
+    # derive S and n
+    temp = 4 * q / r**3
+    temp = np.clip(temp, -1, 1)     # Ensure values stay within the valid range for arccos
+    S = r * np.cos( 1/3 * np.arccos( temp ) )
+    temp = np.array( [
+        Q[..., 0,2] * ( Q[..., 1,1] - S ) - Q[..., 0,1] * Q[..., 1,2] ,
+        Q[..., 1,2] * ( Q[..., 0,0] - S ) - Q[..., 0,1] * Q[..., 0,2] ,
+        Q[..., 0,1]**2 - ( Q[..., 0,0] - S ) * ( Q[..., 1,1] - S  )
+        ] )
+    n = temp / np.linalg.norm(temp, axis = 0)
+    
+    n = n.transpose((
+                    *(np.arange(1, len(np.shape(n)), 1))
+                    ,0))
+    S = S * 1.5     # S is defined in [0, 1] in this code.
+
+    return S, n
+
+
+def add_periodic_boundary(data, is_boundary_periodic=0):
+    """
+    Extends a 3D data array by adding periodic boundary conditions.
+
+    This function extends the input array along specified dimensions to enforce periodic boundary conditions.
+    If a boundary is marked as periodic, the last element in that direction is set equal to the first element.
+
+    Parameters
+    ----------
+    data : numpy.ndarray, (N, M, L, ...)
+           A multidimensional NumPy array where the first three dimensions represent spatial coordinates.
+    
+    is_boundary_periodic : tuple of bool or int, optional
+                           A tuple indicating whether periodic boundaries should be applied along each spatial axis (N, M, L).
+                           - A value of `True` (or `1`) in an index means the corresponding boundary is periodic.
+                           - A value of `False` (or `0`) means the boundary remains unchanged.
+                           Default is [0,0,0], without periodic boundary condition.
+
+    Returns
+    -------
+    numpy.ndarray : A new array with periodic boundaries applied along the specified axes.
+
+    Dependencies
+    ------------
+    - NumPy: 1.22.0
+    """
+
+    is_boundary_periodic = array_from_single_or_list(is_boundary_periodic)
+
+    if np.sum(is_boundary_periodic) != 0:
+        N, M, L = np.shape(data)[:3]    # Extract the first three dimensions
+        output = np.zeros( (N+is_boundary_periodic[0],
+                            M+is_boundary_periodic[1],
+                            L+is_boundary_periodic[2],
+                            *(np.shape(data)[3:]) ))    # Preserve additional dimensions
+        output[:N, :M, :L] = data   # Copy original data into the new array
+
+        # Copy first slices to last.
+        if is_boundary_periodic[0] == True:
+            output[N] = output[0]
+        if is_boundary_periodic[1] == True:
+            output[:, M] = output[:, 0]
+        if is_boundary_periodic[2] == True:
+            output[:,:,L] = output[:,:,0] 
+    else:
+        output = data
+
+    return output
+
+
 def find_mirror_point_boundary(point, box_size_periodic=[np.inf, np.inf, np.inf], is_self=True):
     """
     For point near the periodic boundary condition, find all the mirror points across the periodic boundary.
@@ -77,27 +209,6 @@ def find_mirror_point_boundary(point, box_size_periodic=[np.inf, np.inf, np.inf]
     return mirror_points
 
 
-def add_periodic_boundary(data, is_boundary_periodic=0):
-
-    if np.sum(is_boundary_periodic) != 0:
-        N, M, L = np.shape(data)[:3]
-        output = np.zeros( (N+is_boundary_periodic[0],
-                            M+is_boundary_periodic[1],
-                            L+is_boundary_periodic[2],
-                            *(np.shape(data)[3:]) ))
-        output[:N, :M, :L] = data
-        if is_boundary_periodic[0] == True:
-            output[N] = output[0]
-        if is_boundary_periodic[1] == True:
-            output[:, M] = output[:, 0]
-        if is_boundary_periodic[2] == True:
-            output[:,:,L] = output[:,:,0] 
-    else:
-        output = data
-
-    return output
-
-
 def unwrap_trajectory(points, box_size_periodic=[np.inf, np.inf, np.inf]):
     """
     Unwrap the points which compose a line crossing the periodic boundary
@@ -150,81 +261,6 @@ def unwrap_trajectory(points, box_size_periodic=[np.inf, np.inf, np.inf]):
     points_unwrap = np.concatenate([[points[0]], points[0] + np.cumsum(deltas, axis=0)])
     
     return points_unwrap
-
-
-def diagonalizeQ(qtensor):
-    #! biaxial as option
-    """
-    Diagonalization of Q tensor in 3D nematics.
-    Currently it onply provides the uniaxial information.
-    Will be updated to derive biaxial analysis in the future.
-    Algorythm provided by Matthew Peterson:
-    https://github.com/YingyouMa/3D-active-nematics/blob/405c8d54d797cc39c1f14c82112cb43d304ef16c/reference/order_parameter_calculation.pdf
-
-    Parameters
-    ----------
-    qtensor : numpy array, (..., 5)  or (..., 3, 3)
-              tensor order parameter Q of each grid.
-              The Q tensor for each grid could be represented by 5 numbers or 3 x 3 = 9 numbers
-              If 5, then qtensor[..., 0] = Q_xx, qtensor[..., 1] = Q_xy, and so on. 
-              If 3 x 3, then qtensor[..., 0,0] = Q_xx, qtensor[..., 0,1] = Q_xy, and so on.
-              
-
-    Returns
-    -------
-    S : numpy array, (...). For example, if the shape of input is (20,30,40,50,5), then the shape of S here is (20,30,40,50)
-        the biggest eigenvalue as the scalar order parameter of each grid
-
-    n : numpy array, (..., 3)
-        the eigenvector corresponding to the biggest eigenvalue, as the director, of each grid.
-
-
-    Dependencies
-    ------------
-    - NumPy: 1.22.0
-
-    """
-
-    if np.all( np.shape(qtensor)[-2:] == np.array([3,3]) ):
-        Q = qtensor
-    elif np.shape(qtensor)[-1] == 5:
-        Q = np.zeros( (*(np.shape(qtensor)[:-1]), 3, 3)  )
-        Q[..., 0,0] = qtensor[..., 0]
-        Q[..., 0,1] = qtensor[..., 1]
-        Q[..., 0,2] = qtensor[..., 2]
-        Q[..., 1,0] = qtensor[..., 1]
-        Q[..., 1,1] = qtensor[..., 3]
-        Q[..., 1,2] = qtensor[..., 4]
-        Q[..., 2,0] = qtensor[..., 2]
-        Q[..., 2,1] = qtensor[..., 4]
-        Q[..., 2,2] = - Q[..., 0,0] - Q[..., 1,1]
-    else:
-        raise NameError(
-            "The dimension of qtensor would be (..., 3, 3) or (..., L, 5)"
-            )
-
-    p = 0.5 * np.einsum('...ab, ...ba -> ...', Q, Q)
-    q = np.linalg.det(Q)
-    r = 2 * np.sqrt( p / 3 )
-
-    # derive S and n
-    temp = 4 * q / r**3
-    temp[temp>1]  =  1
-    temp[temp<-1] = -1
-    S = r * np.cos( 1/3 * np.arccos( temp ) )
-    temp = np.array( [
-        Q[..., 0,2] * ( Q[..., 1,1] - S ) - Q[..., 0,1] * Q[..., 1,2] ,
-        Q[..., 1,2] * ( Q[..., 0,0] - S ) - Q[..., 0,1] * Q[..., 0,2] ,
-        Q[..., 0,1]**2 - ( Q[..., 0,0] - S ) * ( Q[..., 1,1] - S  )
-        ] )
-    n = temp / np.linalg.norm(temp, axis = 0)
-    
-    n = n.transpose((
-                    *(np.arange(1, len(np.shape(n)), 1))
-                    ,0))
-    S = S * 1.5
-
-    return S, n
 
 
 def getQ(n, S=0, is_boundary_periodic=0):
@@ -1433,7 +1469,7 @@ def visualize_nematics_field_old(n=[0], S=[0],
 
     bgcolor : array of three floats, optional
               Background color of the plot in RGB.
-              Default is (0, 0, 0), white.
+              Default is (1,1,1), white.
 
     fgcolor : array of three floats, optional
               Foreground color of the plot in RBG.
