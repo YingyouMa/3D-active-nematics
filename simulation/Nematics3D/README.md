@@ -21,6 +21,10 @@ This calculates the Frank deformation energy.
 This provides the coarse-graining $Q$ and $\rho$ field of my particle-based simulation of nematics.
 This is not necessary if you've already got your continuum $Q$ field.
 
+### lammps.py
+For my particle-based simulation of nematics, this reads the dump files of `LAMMPS`.
+This is not necessary if you've already got your continuum $Q$ field.
+
 ## Dependencies
 This package relies on fundamental scientific computing libraries. I personally use the following versions:
  - **Numpy**:  1.22.0
@@ -33,7 +37,10 @@ Since I use the unpack operator in subscript notation, ```Python > 3.11``` is re
  - **Python**:  3.12.9 
 
 In `coarse.py`, the output data of coarse-grained field is stored using package `h5py`. My personal setup:
- - **h5py**:    3.13.0
+ - **h5py**:    3.11.0
+
+In `lammps.py`, the dump files of lammps is read using package `pandas`. My personal setup:
+ - **pandas**:  2.2.2
 
 ## Installation
 Currently, I manually place the package in a specific location and import it using a custom path.  
