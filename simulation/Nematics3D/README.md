@@ -1,7 +1,6 @@
 # -----------------------------------------------
-# Basic detection and analysis of disclinations
+# Basic analysis of 3D uniaixal nematics
 # Yingyou Ma, Physics @ Brandeis, 2023
 # -----------------------------------------------
 
-# Nematics3D
-The analysis and visualization tool of 3D nematics field as well as the disclinations
+
