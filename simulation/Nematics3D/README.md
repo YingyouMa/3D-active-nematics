@@ -17,15 +17,19 @@ This provides the disclination analysis, including the detectation, topological 
 ### elastic.py
 This calculates the Frank deformation energy.
 
+### coarse.py
+This provides the coarse-graining $Q$ and $\rho$ field of my particle-based simulation of nematics.
+This is not necessary if you've already got your continuum $Q$ field.
+
 ## Dependencies
 This package relies on fundamental scientific computing libraries. I personally use the following versions:
  - **Numpy**:  1.22.0
  - **SciPy**:  1.7.3
 
-For 3D visualization, it uses Mayavi:
+For 3D visualization, it uses ```Mayavi```:
  - **mayavi**:  4.8.2
 
-Since I use the unpack operator in subscript notation, Python > 3.11 is required. My personal setup:
+Since I use the unpack operator in subscript notation, ```Python > 3.11``` is required. My personal setup:
  - **Python**:  3.12.9  
 
 ## Installation
@@ -40,3 +44,4 @@ To install Mayavi using conda, run:
 ```
 conda install -c conda-forge mayavi=4.8.2
 ```
+A new environment specifically for ```mayavi``` is recommended.
