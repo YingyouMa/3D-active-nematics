@@ -5,13 +5,14 @@ from .smoothened_line import SmoothenedLine
 from ..general import array_from_single_or_list, sort_line_indices, get_plane, get_tangent
 
 class DisclinationLine:
+    #! Consider period for cross
     """
     Disclination_line class represents a disclination line.
 
 
     """
     def __init__(self, defect_indices, box_size_periodic,
-                       is_sorted=True, origin=(0,0,0), space_index_ratio=1, is_add_mid=True):   
+                       is_sorted=True, origin=(0,0,0), space_index_ratio=1, is_add_mid=False):   
         '''
         defect_indices : array, (M,3)
                          The array that includes all the indices of defects.
@@ -71,8 +72,6 @@ class DisclinationLine:
         self._box_size_periodic_coord = box_size_periodic * self._space_index_ratio
         self._defect_num = np.shape(self._defect_indices)[0]
 
-
-        
         if len(np.shape([space_index_ratio])) == 1:
             space_index_ratio = (space_index_ratio, space_index_ratio, space_index_ratio)
 
@@ -86,6 +85,7 @@ class DisclinationLine:
         self._origin = origin
         self._space_index_ratio = space_index_ratio
 
+
     def update_defect_coord(self, origin=(0,0,0), space_index_ratio=1):
 
         self._defect_coord = calc_coord(self._defect_indices_full, 
@@ -94,17 +94,16 @@ class DisclinationLine:
         self._origin = origin
         self._space_index_ratio = space_index_ratio 
 
+
     def update_norm(self):
         self._norm = get_plane(self._defect_coord)
         return self._norm
+    
 
     def update_center(self):
         self._center = np.average(self._defect_indices, axis=0)
         return self._center
     
-    def update_length(self):
-        self._length = np.linalg.norm(self._defect_coord[1:] - self._defect_coord[:-1], axis=-1).sum()
-        return self._length
 
     def update_smoothen(self,
                         window_ratio=None, window_length=21, order=3, N_out_ratio=3):
@@ -121,10 +120,14 @@ class DisclinationLine:
         self._defect_coord_smooth_obj = output
         self._defect_coord_smooth = output._output
 
-    def update_rotation(self, n, num_shell=1):
+        return output._output
+    
+
+    def update_rotation(self, n, num_shell=1, method='plane'):
         self._Omega = defect_rotation(self._defect_indices, n, 
-                                      num_shell=num_shell, box_size_periodic=self._box_size_periodic)
+                                      num_shell=num_shell, method=method, box_size_periodic=self._box_size_periodic)
         return self._Omega
+    
     
     def update_gamma(self, n=0, num_shell=1):
 
@@ -143,12 +146,51 @@ class DisclinationLine:
 
         return self._gamma
     
-    def update_tangent(self):
-        if self._end2end_category in ['loop', 'cross']:
-            self._tangent = get_tangent(self._defect_indices, is_periodic=True)
+    
+    def update_geometry(self, is_smooth=True):
+
+        if is_smooth:
+            if hasattr(self, '_defect_coord_smooth'):
+                if self._defect_coord_smooth_obj._N_out_ratio == 1:
+                    points = self._defect_coord_smooth
+                else:
+                    print('There are more points in the smooth line')
+                    print('Start to re-smooth it with N_out_ratio=1')
+                    print(f'window_length={self._defect_coord_smooth_obj._window_length}')
+                    print(f'order={self._defect_coord_smooth_obj._order}')
+                    print(f'mode={self._defect_coord_smooth_obj._mode}')
+                    
+                    points = SmoothenedLine(self._defect_coord, 
+                                            window_length=self._defect_coord_smooth_obj._window_length, 
+                                            order=self._defect_coord_smooth_obj._order, 
+                                            N_out_ratio=1, 
+                                            mode=self._defect_coord_smooth_obj._mode,
+                                            is_keep_origin=False)._output
+                    print('Done!')
+
+            else:
+                print('The line has not been smoothened')
+                print('Use original data instead')
+                points = self._defect_coord
         else:
-            self._tangent = get_tangent(self._defect_indices, is_periodic=False)
-        return self._tangent
+            points = self._defect_coord
+
+        is_periodic = self._end2end_category == 'loop'
+
+        tangents = get_tangent(points, is_periodic=is_periodic, is_norm=False)
+        tangents_size = np.linalg.norm(tangents, axis=1, keepdims=True)
+        tangents = tangents / tangents_size
+
+        dT_ds = get_tangent(tangents, is_periodic=is_periodic, is_norm=False)
+        dT_ds_size = np.linalg.norm(dT_ds, axis=1, keepdims=False)
+        curvatures = dT_ds_size / tangents_size[:,0]
+
+        length = np.sum(tangents_size, axis=0)[0]
+
+        self._tangent = tangents
+        self._curvature = curvatures
+        self._length = length
+
     
     def update_beta(self, n=0):
 
@@ -157,17 +199,16 @@ class DisclinationLine:
         else:
             Omega = self.update_rotation(n)
 
-        if hasattr(self, '_tangent'):
-            tangent = self._tangent
-        else:
-            tangent = self.update_tangent()
+        if not hasattr(self, '_tangent'):
+            self.update_geometry()
+        tangent = self._tangent
 
         self._beta = np.arccos(np.einsum('ia, ia -> i', tangent, Omega)) / np.pi * 180
 
         return self._beta
 
 
-    def figure_init(self, is_wrap=False,
+    def figure_init(self, is_wrap=False, is_smooth=True,
                     tube_radius=0.5, tube_opacity=0.5, tube_color=(0.5,0.5,0.5), tube_sides=6,
                     is_new=True, bgcolor=(1,1,1)
                     ):
@@ -177,8 +218,13 @@ class DisclinationLine:
         '''
         from mayavi import mlab
 
-        if hasattr(self, '_defect_coord_smooth'):
-            line_coord = self._defect_coord_smooth
+        if is_smooth:
+            if hasattr(self, '_defect_coord_smooth'):
+                line_coord = self._defect_coord_smooth
+            else:
+                print('the line has not been smoothened')
+                print('use original data instead')
+                line_coord = self._defect_coord
         else:
             line_coord = self._defect_coord
 
@@ -278,3 +324,7 @@ class DisclinationLine:
 #         opacity=norm_opacity,
 #         line_width=norm_width
 #         ) 
+
+# def update_length(self):
+#     self._length = np.linalg.norm(self._defect_coord[1:] - self._defect_coord[:-1], axis=-1).sum()
+#     return self._length

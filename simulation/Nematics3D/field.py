@@ -585,7 +585,7 @@ def n_color_func_default(n):
     return scalars
 
 def visualize_n(n, loc=None, 
-                        n_length=1, n_shape='cylinder', n_opacity=1, n_color=(0,0,0), n_width=1):
+                   n_length=1, n_shape='cylinder', n_opacity=1, n_color=(0,0,0), n_width=1):
     
     from mayavi import mlab
     
@@ -668,6 +668,7 @@ def visualize_nematics_field(n=[0], S=[0], defect_indices=None,
     #! warning about boundary condition of classfication of defect lines
     #! introduction of n_plane_index
     #! defect at cencter
+    #! make_plot_directors to visualize_n
 
     """
     Visualize a 3D nematics field using Mayavi. 
@@ -824,6 +825,10 @@ def visualize_nematics_field(n=[0], S=[0], defect_indices=None,
                         Warning: If only part of the box is selected by sub_space so that it will not have the periodic boundary condition,
                         is_boundary_periodic will be reset to False automatically if it is initially True.
 
+    defect_color : array of three floats, optional
+                   Color of defect points in RGB.
+                   Default is (0,0,0), black.
+
     defect_threshold : float, optional
                        Threshold for detecting defects. 
                        When calculating the winding number, if the inner product of neighboring directors after one loop is smaller than defect_threshold,
@@ -840,7 +845,7 @@ def visualize_nematics_field(n=[0], S=[0], defect_indices=None,
 
     bgcolor : array of three floats, optional
               Background color of the plot in RGB.
-              Default is (0, 0, 0), white.
+              Default is (1, 1, 1), white.
 
     fgcolor : array of three floats, optional
               Foreground color of the plot in RBG.
@@ -872,7 +877,7 @@ def visualize_nematics_field(n=[0], S=[0], defect_indices=None,
     - mayavi: 4.8.2
 
     """
-    from .disclination import defect_detect, defect_find_vicinity_grid
+    from .disclination import defect_detect, defect_vinicity_grid
 
     # examine the input data
     n = np.array(n)
@@ -1053,7 +1058,7 @@ def visualize_nematics_field(n=[0], S=[0], defect_indices=None,
                     defect_local = defect_detect(n[ind_local], planes=planes_defect_detect,
                                                  threshold=defect_threshold, print_time=defect_print_time)
                     # defect_n_local = find_defect_n(defect_local)
-                    defect_n_local = defect_find_vicinity_grid(defect_local, num_add=0).reshape(-1,3).astype(int)
+                    defect_n_local = defect_vinicity_grid(defect_local, num_shell=1).reshape(-1,3).astype(int)
                     defect_n_local[:,0] = indexall_n[0][defect_n_local[:,0]]
                     defect_n_local[:,1] = indexall_n[1][defect_n_local[:,1]]
                     defect_n_local[:,2] = indexall_n[2][defect_n_local[:,2]]

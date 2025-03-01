@@ -106,6 +106,40 @@ def nearest_neighbor_order(points):
 
 
 def get_square_each(size, num, dim=2):
+    '''
+    Generate the coordinates of a square's boundary
+
+    This function constructs a square boundary based on the given size and the number 
+    of discrete points along each edge. The output contains the coordinates of these 
+    points in 2D or 3D space, depending on the specified dimension.
+
+    The boundary always starts with [0,0,0] as the bottom-left corner and goes clockwisely.
+
+    If in 3D, the x-coordinates of the boundary is 0
+
+    Parameters
+    ----------
+    size : float
+           The length of one side of the square.
+
+    num : int
+          The number of points along each edge of the square. Must be greater than or equal to 2.
+
+    dim : int, optional
+          The dimension of the space in which the square is represented.
+          - If `dim=2` (default), the square is generated in 2D space.
+          - If `dim=3`, the square is generated in 3D space, with the x-coordinate set to 0.
+
+    Returns
+    -------
+    result : numpy.ndarray, (4*num-4, dim)
+             Array containing the coordinates of the points forming the boundary of the square.
+             The points are ordered in a clockwise manner starting from origin.
+
+    Dependencies
+    ------------
+    - NumPy: 1.26.4
+    '''
 
     edge1 = [   np.linspace(0, size, num),      np.zeros(num)               ]
     edge2 = [   np.zeros(num) + size,           np.linspace(0, size, num)   ]
@@ -122,7 +156,49 @@ def get_square_each(size, num, dim=2):
     return result
 
 
-def get_square(size_list, num_list, origin_list=[[0,0,0]], dim=2):
+def get_square(size_list, num_list, origin_list=[[0,0,0]], dim=3):
+    '''
+    Generate the coordinates of multiple squares' boundaries in a specified dimension.
+
+    This function constructs boundaries for multiple squares based on given sizes, 
+    numbers of points along edges, and positions of the bottom-left corner. 
+    The resulting coordinates are combined into a single array.
+
+    Parameters
+    ----------
+    size_list : list or numpy.ndarray
+                List or array of side lengths for the squares. 
+                Each element specifies the side length of one square.
+
+    num_list : list or numpy.ndarray
+               List or array of the number of points along each edge of the squares. 
+               Each element corresponds to the respective square's `size_list`.
+
+    origin_list : list or numpy.ndarray, (N, 3), optional
+                  List or array specifying the origin for each square, as the positions of bottom-left corner.
+                  N is the number of origins
+                  Default is [[0, 0, 0]].
+
+    dim : int, optional
+          The dimension of the space in which the squares are represented.
+          - If `dim=2` , the squares are generated in 2D space.
+          - If `dim=3` (default), the squares are generated in 3D space, with the x-coordinates set to 0.
+
+    Returns
+    -------
+    result : numpy.ndarray, (total_points, dim)
+             Array containing the coordinates of the points forming the boundaries of all the squares. 
+             Points from each square are ordered as returned by get_square_each().
+
+    Raises
+    ------
+    NameError
+        If the lengths of `size_list`, `num_list`, and `origin_list` do not match.
+
+    Dependencies
+    ------------
+    - NumPy: 1.26.4  
+    '''
 
     if isinstance(size_list, int):
         size_list = np.array([size_list])
@@ -225,7 +301,41 @@ def search_in_reservoir(items, reservoir, is_reservoir_hash=False):
     return result
 
 
-def get_tangent(points, is_periodic=True, is_norm=True):
+def get_tangent(points, is_periodic=False, is_norm=True):
+    '''
+    Calculate the tangent vectors at each point of a given set of points.
+
+    This function computes the tangent vectors for a series of points in space. 
+    It supports periodic boundary conditions and optionally normalizes the tangent vectors.
+
+    Parameters
+    ----------
+    points : numpy.ndarray, (N, D)
+             Array of points where tangents are calculated. 
+             `N` is the number of points, 
+             `D` is the dimension of each point.
+
+    is_periodic : bool, optional
+                  Indicates whether the points form a periodic structure.
+                  - If `True`, the tangent at the first and last points is calculated 
+                    using periodic boundary conditions.
+                  - If `False` (default), the tangent at the first and last points is calculated 
+                    using forward and backward differences, respectively.
+
+    is_norm : bool, optional
+              Indicates whether to normalize the tangent vectors.
+              - If `True` (default), each tangent vector is normalized to unit length.
+
+    Returns
+    -------
+    tangents : numpy.ndarray, (N, D)
+               Array of tangent vectors corresponding to the input points. The shape matches 
+               the input, with each row representing the tangent vector at the corresponding point.
+
+    Dependencies
+    ------------
+    - NumPy: 1.26.4
+    '''
 
     if is_periodic:
         tangents = (np.roll(points, -1, axis=0) - np.roll(points, 1, axis=0)) / 2
@@ -236,6 +346,53 @@ def get_tangent(points, is_periodic=True, is_norm=True):
         tangents[-1] = points[-1] - points[-2] 
     
     if is_norm:
-        tangents /= np.linalg.norm(tangents, axis=1, keepdims=True)
+        size = np.linalg.norm(tangents, axis=1, keepdims=True)
+        size += 1e-6
+        tangents = tangents / size
 
     return tangents
+
+
+def get_curvature(points, is_periodic=False):
+    '''
+    Calculate the curvature at each point of a given set of points.
+
+    This function computes the curvature of a curve defined by a series of points in space. 
+    It uses the tangent vectors to estimate the rate of change of direction along the curve.
+    Periodic boundary conditions are supported.
+
+    Parameters
+    ----------
+    points : numpy.ndarray, (N, D)
+             Array of points where curvature is calculated. 
+             `N` is the number of points, 
+             `D` is the dimension of each point.
+
+    is_periodic : bool, optional
+                  Indicates whether the points form a periodic structure.
+                  - If `True`, curvature at the first and last points is calculated 
+                    using periodic boundary conditions.
+                  - If `False` (default), the curvature at the first and last points is approximated 
+                    using forward and backward differences, respectively.
+
+    Returns
+    -------
+    curvatures : numpy.ndarray, (N,)
+                 Array of curvature values corresponding to the input points. 
+                 Each value represents the magnitude of the rate of change of the tangent vector.
+
+    Dependencies
+    ------------
+    - NumPy: 1.26.4
+    '''
+
+    tangents = get_tangent(points, is_periodic=is_periodic, is_norm=False)
+    tangents_size = np.linalg.norm(tangents, axis=1, keepdims=True)
+    tangents = tangents / tangents_size
+
+    dT_ds = get_tangent(tangents, is_periodic=is_periodic, is_norm=False)
+    dT_ds_size = np.linalg.norm(dT_ds, axis=1, keepdims=False)
+    curvatures = dT_ds_size / tangents_size[:,0]
+
+    return curvatures
+
