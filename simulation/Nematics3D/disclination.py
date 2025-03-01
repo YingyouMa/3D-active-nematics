@@ -216,7 +216,7 @@ def defect_rotation(defect_indices, n,
     vic_grid = defect_vinicity_grid(defect_indices, num_shell=num_shell)
     vic_grid_wrap = np.where(box_size_periodic == np.inf, vic_grid, vic_grid%box_size_periodic)
     
-    # vic_n = n[*tuple(vic_grid_wrap.T)].transpose((1,0,2))
+    vic_n = n[*tuple(vic_grid_wrap.T)].transpose((1,0,2))
 
     if method == 'plane':
         Omega = get_plane(vic_n)
