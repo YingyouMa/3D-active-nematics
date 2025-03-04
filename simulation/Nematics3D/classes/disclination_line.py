@@ -210,7 +210,7 @@ class DisclinationLine:
 
     def figure_init(self, is_wrap=False, is_smooth=True,
                     tube_radius=0.5, tube_opacity=0.5, tube_color=(0.5,0.5,0.5), tube_sides=6,
-                    is_new=True, bgcolor=(1,1,1)
+                    is_new=True, bgcolor=(1,1,1), fig_size=(1920, 1360)
                     ):
         #! plot_norm
         '''
@@ -229,7 +229,7 @@ class DisclinationLine:
             line_coord = self._defect_coord
 
         if is_new:
-            mlab.figure(bgcolor=bgcolor)
+            mlab.figure(bgcolor=bgcolor, fig_size=fig_size)
 
         if not is_wrap:
             figure = mlab.plot3d(*(line_coord.T), 

@@ -721,3 +721,82 @@ def example_visualize_defects_loop_lack(n, is_wrap=True,
         loop.update_smoothen(window_length=loop_window_length) 
         loop.figure_init(tube_color=(0,0,0), is_new=False, is_wrap=is_wrap)
 
+
+def plot_n_on_Pplane(n_box, height, color_axis=0,
+                     space=3):
+
+    if color_axis == 0:
+        print('color_axis is not input')
+        print('use the default value: (1,0)')
+
+    # select the 2D axes to color the directors
+    color_axis1 = color_axis / np.linalg.norm(color_axis) 
+    color_axis2 = np.cross( np.array([0,0,1]), np.concatenate( [color_axis1,[0]] ) )
+    color_axis2 = color_axis2[:-1]
+
+    # x = np.arange(np.shape(n_box)[0])
+    # y = np.arange(np.shape(n_box)[1])
+    # z = np.arange(np.shape(n_box)[2])
+
+    # select the indices of directors to be plot
+    indexy = np.arange(0, np.shape(n_box)[1], space)
+    indexz = np.arange(0, np.shape(n_box)[2], space)
+    iny, inz = np.meshgrid(indexy, indexz, indexing='ij')
+    ind = (iny, inz)
+
+    # project the directors on the 2D N-M plane
+    n_plot = n_box[height]
+    n_plane = np.array( [n_plot[:,:,1][ind], n_plot[:,:,2][ind] ] )
+    n_plane = n_plane / np.linalg.norm( n_plane, axis=-1, keepdims=True)
+
+#     stl = get_streamlines(
+#                 y[indexy], z[indexz], 
+#                 n_plane[0].transpose(), n_plane[1].transpose(),
+#                 density=line_density)
+#     stl = np.array(stl)
+
+
+def show_loop_plane_2Ddirector(n_box, height_list,
+                               height_visual_list=0, plane_list=(1,0,1),
+                               smooth_window_ratio=3, smooth_order=3, smooth_N_out_ratio=5,
+                               tube_radius=0.25, tube_opacity=0.5, tube_color=(0.5,0.5,0.5),
+                               fig_size=(1920, 1360), bgcolor=(1,1,1)):
+
+    from mayavi import mlab
+
+    # define the interpolate function by parabola
+    if height_visual_list == 0:
+        height_visual_list = height_list
+        def parabola(x):
+            return x
+    else:
+        x, y, z = height_list
+        coe_matrix = np.array([
+                        [x**2, y**2, z**2],
+                        [x, y, z],
+                        [1,1,1]
+                        ])
+        del x, y, z
+        coe_parabola = np.dot(height_visual_list, np.linalg.inv(coe_matrix))
+        def parabola(x):
+            return coe_parabola[0]*x**2 + coe_parabola[1]*x + coe_parabola[2]
+        
+    # identify the disclination loop from the input director field, and then visualize it
+    loop_indices = defect_detect(n_box)
+    loop = defect_classify_into_lines(loop_indices)[0]
+    loop.update_smoothen(window_ratio=smooth_window_ratio, 
+                         order=smooth_order, 
+                         N_out_ratio=smooth_N_out_ratio)
+    loop.figure_init(tube_radius=tube_radius, tube_opacity=tube_opacity, tube_color=tube_color, 
+                     fig_size=fig_size, bgcolor=bgcolor)
+    
+    for i, if_plane in enumerate(plane_list):
+        if if_plane:
+            show_plane_2Ddirector(n_box, height_list[i], 
+                                  height_visual=height_visual_list[i], if_omega=if_omega_list[i], 
+                                  line_width=line_width, line_density=line_density,
+                                  S_box=S_box, if_cb=if_cb, colormap=n_colormap)
+    
+
+
+
