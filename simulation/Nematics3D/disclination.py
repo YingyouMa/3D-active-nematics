@@ -722,8 +722,13 @@ def example_visualize_defects_loop_lack(n, is_wrap=True,
         loop.figure_init(tube_color=(0,0,0), is_new=False, is_wrap=is_wrap)
 
 
-def plot_n_on_Pplane(n_box, height, color_axis=0,
-                     space=3):
+def plot_n_on_Pplane(n_box, height, 
+                     color_axis=0, height_visual=0,
+                     space=3, line_width=2, line_density=1.5,
+                     if_cb=True, colormap='blue-red'):
+    
+    from .defect2D import get_streamlines
+    from mayavi import mlab
 
     if color_axis == 0:
         print('color_axis is not input')
@@ -734,9 +739,12 @@ def plot_n_on_Pplane(n_box, height, color_axis=0,
     color_axis2 = np.cross( np.array([0,0,1]), np.concatenate( [color_axis1,[0]] ) )
     color_axis2 = color_axis2[:-1]
 
-    # x = np.arange(np.shape(n_box)[0])
-    # y = np.arange(np.shape(n_box)[1])
-    # z = np.arange(np.shape(n_box)[2])
+
+    # the grid indices
+    x = np.arange(np.shape(n_box)[0])
+    y = np.arange(np.shape(n_box)[1])
+    z = np.arange(np.shape(n_box)[2])
+
 
     # select the indices of directors to be plot
     indexy = np.arange(0, np.shape(n_box)[1], space)
@@ -744,23 +752,81 @@ def plot_n_on_Pplane(n_box, height, color_axis=0,
     iny, inz = np.meshgrid(indexy, indexz, indexing='ij')
     ind = (iny, inz)
 
+
     # project the directors on the 2D N-M plane
     n_plot = n_box[height]
     n_plane = np.array( [n_plot[:,:,1][ind], n_plot[:,:,2][ind] ] )
     n_plane = n_plane / np.linalg.norm( n_plane, axis=-1, keepdims=True)
 
-#     stl = get_streamlines(
-#                 y[indexy], z[indexz], 
-#                 n_plane[0].transpose(), n_plane[1].transpose(),
-#                 density=line_density)
-#     stl = np.array(stl)
+
+    # extract the streamlines of directors on the 2D N-M plane
+    stl = get_streamlines(
+                y[indexy], z[indexz], 
+                n_plane[0].transpose(), n_plane[1].transpose(),
+                density=line_density)
+    stl = np.array(stl)
+
+
+    # Prepare the lines to be plotted by mayavi
+    # This selects the pairs of points which are connected in the plot
+    # In other words, the neighboring points within the same streamline are connected to form a unit segment
+    connect_begin = np.where(np.abs( stl[1:,0] - stl[:-1,1]  ).sum(axis=-1) < 1e-5 )[0]
+    connections = np.zeros((len(connect_begin),2))
+    connections[:,0] = connect_begin
+    connections[:,1] = connect_begin + 1
+
+    lines_index = np.arange(np.shape(stl)[0])
+    disconnect = lines_index[~np.isin(lines_index, connect_begin)]
+
+
+    # the coordinates of points to be plotted
+    if height_visual == 0:
+        src_x = stl[:, 0, 0] * 0 + height
+    else:
+        src_x = stl[:, 0, 0] * 0 + height_visual
+    src_y = stl[:, 0, 0]
+    src_z = stl[:, 0, 1]
+
+
+    # To derive the colors for the streamline, express each unit segment in the color-axes
+    unit = stl[1:, 0] - stl[:-1, 0]
+    unit = unit / np.linalg.norm(unit, axis=-1, keepdims=True)
+    coe1 = np.einsum('ij, j -> i', unit, color_axis1)
+    coe2 = np.einsum('ij, j -> i', unit, color_axis2)
+    coe1 = np.concatenate([coe1, [coe1[-1]]])
+    coe2 = np.concatenate([coe2, [coe2[-1]]])
+    colors = np.arctan2(coe1,coe2)
+    nan_index = np.array(np.where(np.isnan(colors)==1))
+    colors[nan_index] = colors[nan_index-1]
+    colors[disconnect] = colors[disconnect-1]
+
+    # initialize the figure
+    src = mlab.pipeline.scalar_scatter(src_x, src_y, src_z, colors)
+    src.mlab_source.dataset.lines = connections
+    src.update()
+
+    lines = mlab.pipeline.stripper(src)
+    plot_lines = mlab.pipeline.surface(lines, line_width=line_width, colormap=colormap)
+
+    # apply the input colormap
+    if type(colormap) == np.ndarray:
+        lut = plot_lines.module_manager.scalar_lut_manager.lut.table.to_array()
+        lut[:, :3] = colormap
+        plot_lines.module_manager.scalar_lut_manager.lut.table = lut
+
+    if if_cb == True:
+        cb = mlab.colorbar(object=plot_lines, orientation='vertical', nb_labels=5, label_fmt='%.2f')
+        cb.data_range = (0,1)
+        cb.label_text_property.color = (0,0,0)
 
 
 def show_loop_plane_2Ddirector(n_box, height_list,
                                height_visual_list=0, plane_list=(1,0,1),
                                smooth_window_ratio=3, smooth_order=3, smooth_N_out_ratio=5,
                                tube_radius=0.25, tube_opacity=0.5, tube_color=(0.5,0.5,0.5),
-                               fig_size=(1920, 1360), bgcolor=(1,1,1)):
+                               line_width=2, line_density=1.5,
+                               fig_size=(1920, 1360), bgcolor=(1,1,1), camera_set=0,
+                               if_cb=True, n_colormap='blue-red'):
 
     from mayavi import mlab
 
@@ -781,8 +847,10 @@ def show_loop_plane_2Ddirector(n_box, height_list,
         def parabola(x):
             return coe_parabola[0]*x**2 + coe_parabola[1]*x + coe_parabola[2]
         
+        
     # identify the disclination loop from the input director field, and then visualize it
     loop_indices = defect_detect(n_box)
+    loop_indices[:, -1] = parabola(loop_indices[:, -1])
     loop = defect_classify_into_lines(loop_indices)[0]
     loop.update_smoothen(window_ratio=smooth_window_ratio, 
                          order=smooth_order, 
@@ -790,12 +858,21 @@ def show_loop_plane_2Ddirector(n_box, height_list,
     loop.figure_init(tube_radius=tube_radius, tube_opacity=tube_opacity, tube_color=tube_color, 
                      fig_size=fig_size, bgcolor=bgcolor)
     
+
+    # For each N-M plane,
+    # project the directors on this 2D plane,
+    # and then plot them as streamlines
     for i, if_plane in enumerate(plane_list):
         if if_plane:
-            show_plane_2Ddirector(n_box, height_list[i], 
-                                  height_visual=height_visual_list[i], if_omega=if_omega_list[i], 
-                                  line_width=line_width, line_density=line_density,
-                                  S_box=S_box, if_cb=if_cb, colormap=n_colormap)
+            plot_n_on_Pplane(n_box, height_list[i], 
+                             height_visual=height_visual_list[i], 
+                             line_width=line_width, line_density=line_density,
+                             if_cb=if_cb, colormap=n_colormap)
+            
+
+    # change the camera            
+    if camera_set != 0: 
+        mlab.view(*camera_set[:3], roll=camera_set[3])
     
 
 

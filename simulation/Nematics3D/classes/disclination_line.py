@@ -229,7 +229,7 @@ class DisclinationLine:
             line_coord = self._defect_coord
 
         if is_new:
-            mlab.figure(bgcolor=bgcolor, fig_size=fig_size)
+            mlab.figure(bgcolor=bgcolor, size=fig_size)
 
         if not is_wrap:
             figure = mlab.plot3d(*(line_coord.T), 
