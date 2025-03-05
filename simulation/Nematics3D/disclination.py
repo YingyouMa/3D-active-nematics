@@ -727,12 +727,17 @@ def plot_n_on_Pplane(n_box, height,
                      space=3, line_width=2, line_density=1.5,
                      if_cb=True, colormap='blue-red'):
     
+    #! warning: L is in the first axis
+    
     from .defect2D import get_streamlines
     from mayavi import mlab
+
 
     if color_axis == 0:
         print('color_axis is not input')
         print('use the default value: (1,0)')
+        color_axis = (1,0)
+
 
     # select the 2D axes to color the directors
     color_axis1 = color_axis / np.linalg.norm(color_axis) 
@@ -806,7 +811,7 @@ def plot_n_on_Pplane(n_box, height,
     src.update()
 
     lines = mlab.pipeline.stripper(src)
-    plot_lines = mlab.pipeline.surface(lines, line_width=line_width, colormap=colormap)
+    plot_lines = mlab.pipeline.surface(lines, line_width=line_width, colormap='blue-red')
 
     # apply the input colormap
     if type(colormap) == np.ndarray:
@@ -823,11 +828,13 @@ def plot_n_on_Pplane(n_box, height,
 def show_loop_plane_2Ddirector(n_box, height_list,
                                height_visual_list=0, plane_list=(1,0,1),
                                smooth_window_ratio=3, smooth_order=3, smooth_N_out_ratio=5,
-                               tube_radius=0.25, tube_opacity=0.5, tube_color=(0.5,0.5,0.5),
+                               tube_radius=0.5, tube_opacity=0.5, tube_color=(0.5,0.5,0.5),
                                line_width=2, line_density=1.5,
                                fig_size=(1920, 1360), bgcolor=(1,1,1), camera_set=0,
                                if_cb=True, n_colormap='blue-red'):
 
+    #! warning: L is in the first axis
+    
     from mayavi import mlab
 
     # define the interpolate function by parabola
@@ -850,8 +857,8 @@ def show_loop_plane_2Ddirector(n_box, height_list,
         
     # identify the disclination loop from the input director field, and then visualize it
     loop_indices = defect_detect(n_box)
-    loop_indices[:, -1] = parabola(loop_indices[:, -1])
     loop = defect_classify_into_lines(loop_indices)[0]
+    loop._defect_coord[:, 0] = parabola(loop._defect_coord[:, 0])
     loop.update_smoothen(window_ratio=smooth_window_ratio, 
                          order=smooth_order, 
                          N_out_ratio=smooth_N_out_ratio)

@@ -127,7 +127,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--k", type=int) 						        # stiffness
 parser.add_argument("--a", type=float) 								# activity
 parser.add_argument("--name", type=int) 							# name
-parser.add_argument("--if_cover", type=bool, default=False) 
+parser.add_argument("--cover", action="store_true") 
 args = parser.parse_args()
 
 if args.k == None:
