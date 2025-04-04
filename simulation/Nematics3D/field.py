@@ -123,6 +123,7 @@ def add_periodic_boundary(data, is_boundary_periodic=0):
 
     if np.sum(is_boundary_periodic) != 0:
         N, M, L = np.shape(data)[:3]    # Extract the first three dimensions
+        #! output = np.zeros( ( *(np.shape(data)[:3] + is_boundary_periodic), *(np.shape(data)[3:]) ) )
         output = np.zeros( (N+is_boundary_periodic[0],
                             M+is_boundary_periodic[1],
                             L+is_boundary_periodic[2],

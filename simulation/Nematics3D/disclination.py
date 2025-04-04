@@ -30,6 +30,9 @@ def defect_detect(n_origin, threshold=0,
     For each small loop formed by four neighoring grid points,
     calculate the inner product between the beginning and end director,
     where we enforce the successive directors have the similar orientation to handle the nematic symmetry.
+    The indices of defect will be represented by one integer and two half-integers.
+    A detailed introduction of this algorithm with illustration is elaborated in the FIG. 1 of the following paper:
+    Coexistence of Defect Morphologies in Three-Dimensional Active Nematics, PRL
     
 
     Parameters
@@ -49,7 +52,7 @@ def defect_detect(n_origin, threshold=0,
                            If only one bool x is given, it is interprepted as (x,x,x)
                            Default is 0, no consideration of periodic boundaries in any dimension
 
-    planes : array, optional
+    planes : array of three bools, optional
              Indicate the direction of planes whose defects are about to be found.
              Each index stands for x-plane, y-plane, z-plane, seperately.
              For example, if planes=[1,0,0], it will only find defects on seperate x-planes,
@@ -63,18 +66,21 @@ def defect_detect(n_origin, threshold=0,
     return_test : bool, optional
                   Flag to return the test result of each grid point.
                   Test result is the inner product between the beginning and end director of small loop.
+                  This is usually used to determine the threshold.
                   Default is False.
 
     Returns
     -------
-    defect_indices : numpy.ndarray, defect_num x 3
+    defect_indices : numpy.ndarray, (defect_num, 3)
                      Array containing the indices of detected defects.
                      In our current algorithm, for each defect's location, 
                      there must be one integer and two half-integers.
                      The integer stands for the plane that the defect sits on.
                      #! defect_indices half integer
 
-    test_result : 
+    test_result : #! only <threshold
+
+    test_result_all : #! all of them
 
     Dependencies
     ------------
@@ -834,7 +840,7 @@ def show_loop_plane_2Ddirector(n_box, height_list,
                                fig_size=(1920, 1360), bgcolor=(1,1,1), camera_set=0,
                                if_cb=True, n_colormap='blue-red'):
 
-    #! warning: (L, M, N)
+    #! warning: L is in the first axis
     
     from mayavi import mlab
 

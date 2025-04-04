@@ -30,8 +30,8 @@ Defect analysis for 2D nematics.
 
 ## Dependencies
 This package relies on fundamental scientific computing libraries. I personally use the following versions:
- - **Numpy**:       1.22.0
- - **SciPy**:       1.7.3
+ - **Numpy**:       2.2.3
+ - **SciPy**:       1.15.1
  - **matplotlib**:  3.10.0 
 
 For 3D visualization, it uses ```Mayavi```:
@@ -54,8 +54,9 @@ import sys
 sys.path.insert(0, "WhereYouPutThePackage")
 import Nematics3D
 ```
-To install Mayavi using conda, run:
+To install Mayavi using conda, run the following line on Anaconda Prompt
 ```
 conda install -c conda-forge mayavi=4.8.2
 ```
-A new environment specifically for ```mayavi``` is recommended.
+A new environment specifically for ```Nematics3D```, or at least ```mayavi```, is highly recommended.
+
