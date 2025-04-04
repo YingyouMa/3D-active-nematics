@@ -24,9 +24,9 @@ SIZE = 128
 
 parameters = pd.read_csv("../parameters.csv")
 par_list = []
-tobe_list = glob.glob( f'../data/density_{DENSITY:0.2f}/*/*/*/end.txt' )
+tobe_list = glob.glob( f'../diag/density_{DENSITY:0.2f}/*/*/*/{SIZE}' )
 
-print('Finished trials: ')
+print('Finished trials: ')        
 for item in tobe_list:
 
     stiffness, activity, name = re.findall(r"\d*\.*\d+", item)[1:4]

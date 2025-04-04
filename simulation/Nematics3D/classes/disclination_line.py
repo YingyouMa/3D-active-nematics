@@ -112,6 +112,9 @@ class DisclinationLine:
         else:
             smoothen_mode = 'interp'
 
+        if window_ratio != None:
+            window_length = None
+
         output = SmoothenedLine(self._defect_coord, 
                                 window_ratio=window_ratio, window_length=window_length, 
                                 order=order, N_out_ratio=N_out_ratio, mode=smoothen_mode,

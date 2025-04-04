@@ -830,10 +830,11 @@ def show_loop_plane_2Ddirector(n_box, height_list,
                                smooth_window_ratio=3, smooth_order=3, smooth_N_out_ratio=5,
                                tube_radius=0.5, tube_opacity=0.5, tube_color=(0.5,0.5,0.5),
                                line_width=2, line_density=1.5,
+                               tube_specular=1, tube_specular_col=(1,1,1), tube_specular_pow=75,
                                fig_size=(1920, 1360), bgcolor=(1,1,1), camera_set=0,
                                if_cb=True, n_colormap='blue-red'):
 
-    #! warning: L is in the first axis
+    #! warning: (L, M, N)
     
     from mayavi import mlab
 
@@ -855,15 +856,32 @@ def show_loop_plane_2Ddirector(n_box, height_list,
             return coe_parabola[0]*x**2 + coe_parabola[1]*x + coe_parabola[2]
         
         
+    # For each N-M plane,
+    # project the directors on this 2D plane,
+    # and then plot them as streamlines
+    mlab.figure(size=fig_size, bgcolor=bgcolor)
+    for i, if_plane in enumerate(plane_list):
+        if if_plane:
+            plot_n_on_Pplane(n_box, height_list[i], 
+                             height_visual=height_visual_list[i], 
+                             line_width=line_width, line_density=line_density,
+                             if_cb=if_cb, colormap=n_colormap)
+
+
     # identify the disclination loop from the input director field, and then visualize it
     loop_indices = defect_detect(n_box)
-    loop = defect_classify_into_lines(loop_indices)[0]
-    loop._defect_coord[:, 0] = parabola(loop._defect_coord[:, 0])
-    loop.update_smoothen(window_ratio=smooth_window_ratio, 
-                         order=smooth_order, 
-                         N_out_ratio=smooth_N_out_ratio)
-    loop.figure_init(tube_radius=tube_radius, tube_opacity=tube_opacity, tube_color=tube_color, 
-                     fig_size=fig_size, bgcolor=bgcolor)
+    if len(loop_indices) > 0:
+        loops = defect_classify_into_lines(loop_indices)
+        # !if len(loops) > 1:
+        loop = loops[0]
+        loop._defect_coord[:, 0] = parabola(loop._defect_coord[:, 0])
+        loop.update_smoothen(window_ratio=smooth_window_ratio, 
+                            order=smooth_order, 
+                            N_out_ratio=smooth_N_out_ratio)
+        loop.figure_init(tube_radius=tube_radius, tube_opacity=tube_opacity, tube_color=tube_color, 
+                        is_new=False)
+        loop.figure_update(tube_spec=tube_specular, tube_spec_col=tube_specular_col, tube_spec_pow=tube_specular_pow)
+    
     
 
     # For each N-M plane,
