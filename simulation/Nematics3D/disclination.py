@@ -666,7 +666,8 @@ def example_visualize_defects(lines, is_wrap=True, min_length=50, window_length=
     lines_color = color_map[ (sample_far(len(lines))*color_map_length).astype(int)  ]
 
     for i, line in enumerate(lines):
-        line.update_smoothen(window_length=window_length)
+        if window_length != 0:
+            line.update_smoothen(window_length=window_length)
         line.figure_init(tube_color=tuple(lines_color[i]), is_new=1-bool(i), is_wrap=is_wrap,
                          tube_opacity=opacity, tube_radius=radius)
         line.figure_update(tube_spec=specular, tube_spec_col=specular_col, tube_spec_pow=specular_pow)
