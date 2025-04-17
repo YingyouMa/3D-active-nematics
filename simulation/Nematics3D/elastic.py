@@ -59,15 +59,16 @@ def get_deform_n(n, width, if_print=True):
 
 def get_deform_Q(n, width, degree):
 
-    N = np.shape(n)[0]
+    N, M, L = np.shape(n)[:-1]
+    LX, LY, LZ = width
 
     Q = np.einsum('nmli, nmlj -> nmlij', n, n)
     Q = Q - np.eye(3)/3
 
-    diffQ = np.zeros( (N, N, N, 3, 3, 3) )   # indexx, indexy, indexz, index_diff, index_Q1, indexQ2, 
-    diffQ[:, :, :, 0] = np.gradient(Q, axis=0) / ( width / (N-1) )
-    diffQ[:, :, :, 1] = np.gradient(Q, axis=1) / ( width / (N-1) )
-    diffQ[:, :, :, 2] = np.gradient(Q, axis=2) / ( width / (N-1) )
+    diffQ = np.zeros( (N, M, L, 3, 3, 3) )   # indexx, indexy, indexz, index_diff, index_Q1, indexQ2, 
+    diffQ[:, :, :, 0] = np.gradient(Q, axis=0) / ( LX / (N-1) )
+    diffQ[:, :, :, 1] = np.gradient(Q, axis=1) / ( LY / (M-1) )
+    diffQ[:, :, :, 2] = np.gradient(Q, axis=2) / ( LZ / (L-1) )
 
     Q = Q[1:-1,1:-1,1:-1]
     diffQ = diffQ[1:-1,1:-1,1:-1]

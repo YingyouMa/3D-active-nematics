@@ -692,7 +692,7 @@ def visualize_nematics_field(n=[0], S=[0], defect_indices=None,
                              S_if_colorbar=True, S_colorbar_params={}, S_colorbar_range=(0,1),
                              defect_opacity=0.8, defect_size_ratio_to_dist=2, defect_color=(0,0,0),
                              is_boundary_periodic=False, defect_threshold=0, defect_print_time=False,
-                             new_figure=True, bgcolor=(1,1,1), fgcolor=(0,0,0), if_axes=False,
+                             new_figure=True, bgcolor=(1,1,1), fgcolor=(0,0,0), figsize=(1920, 1360), if_axes=False, 
                              defect_n_opacity=-1, n_if_color_immerse=False
                              ):
 
@@ -890,6 +890,10 @@ def visualize_nematics_field(n=[0], S=[0], defect_indices=None,
               It should be sufficiently far from bgcolor to see the annotation texts.
               Default is (0,0,0), black
 
+    figsize : tuple of two floats, optional,
+              The size of the figure as (sizeX, sizeY).
+              Default is (1920, 1360)
+
     if_axes : bool, optional
               If True, display axes in the plot in the unit of real space. 
               Default is False.
@@ -954,7 +958,7 @@ def visualize_nematics_field(n=[0], S=[0], defect_indices=None,
 
     # create a new figure with the given background if needed
     if new_figure:
-        mlab.figure(bgcolor=bgcolor, fgcolor=fgcolor)
+        mlab.figure(bgcolor=bgcolor, fgcolor=fgcolor, size=figsize)
 
     # select the sub box to be plotted
     if len(np.shape([sub_space])) == 1:

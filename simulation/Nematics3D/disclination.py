@@ -479,34 +479,53 @@ def add_mid_points_disclination(line, is_loop=False):
 
 
 @time_record
-def defect_classify_into_lines(defect_indices, box_size_periodic=[np.inf, np.inf, np.inf],
+def defect_classify_into_lines(defect_indices, box_size_periodic=np.inf,
                                origin=(0,0,0), space_index_ratio=1):
-    """
-    Short description of the function.
     
-    Detailed explanation.
-    
+    '''
+    Classify and group defect points into disclination lines based on spatial proximity,
+    based on Hierholzer algorithm
+
+    This function constructs a graph from the input defect points, where edges are formed 
+    between neighboring defects with consideration of periodic boundary conditions. 
+    Connected components in the graph are interpreted as continuous disclination lines. 
+    The function encapsulates the result into `DisclinationLine` objects.
+
     Parameters
     ----------
-    param1 : type
-        Description of param1.
-    
-    param2 : type, optional 
-        Description of param2.
-    
+    defect_indices : numpy.ndarray, (num_defects, 3)
+                     List of indices of defects representing defect points in space. 
+                     Each defect index must follow the format of the output of `defect_detect()`
+
+    box_size_periodic : float or list or three floats, optional.
+                        Periodic box size in each spatial dimension, in the order of x, y and z.
+                        Used to determine proximity under periodic boundary conditions.
+                        If the boundary condition is not periodic in one dimension, 
+                        set the corresponding value as infinite (np.inf).
+                        If only one value x is given, it is interprepted as (x,x,x)
+                        Default is infinite, i.e., non-periodic in all directions.
+
+    origin : tuple, optional
+             Origin point used when constructing `DisclinationLine` objects. 
+             Default is (0, 0, 0).
+
+    space_index_ratio : float, optional
+                        Scaling factor to convert index units to real-space units. 
+                        Default is 1.
+
     Returns
     -------
-    return_name : return_type
-        Description of return values.
-    
+    lines : list of DisclinationLine
+            List of `DisclinationLine` objects representing grouped defect trajectories.
+
     Dependencies
     ------------
-    - Dependencies
-    
-    Called by
-    ---------
-    Called by info
-    """
+    - NumPy: 1.26.4
+    - `Graph` from `.classes.graph`: used to build the defect connectivity graph.
+    - `DisclinationLine` from `.classes.disclination_line`: represents individual defect lines.
+    '''
+
+
     from .classes.graph import Graph
     from .classes.disclination_line import DisclinationLine
     from .field import unwrap_trajectory
@@ -651,9 +670,77 @@ def is_loop_new(lines, loop_indices,
 
 @time_record
 def example_visualize_defects(lines, is_wrap=True, min_length=50, window_length=61, 
-                              opacity=1, radius=0.5,
+                              opacity=1, radius=0.5, color_input=None,
                               specular=1, specular_col=(1,1,1), specular_pow=11,
-                              outline_extent=[0,128,0,128,0,128]):
+                              outline_extent=None):
+    
+    '''
+    Visualize a set of disclination lines using Mayavi 3D rendering.
+
+    This function filters, smooths, and visualizes disclination lines in 3D nematics,
+    with customizable visual properties including color, opacity, radius, and lighting effects. 
+    Optionally, small loops could be excluded, and an outline box can be displayed around.
+
+    Parameters
+    ----------
+    lines : list
+            List of `DisclinationLine` objects to visualize.
+
+    is_wrap : bool, optional
+              Whether the line should be wrapped with periodic boudanry conditions.
+              Default is `True`.
+
+    min_length : int, optional
+                 Minimum number of defects required for a line to be visualized. 
+                 Lines shorter than this threshold are discarded. 
+                 Default is 50.
+
+    window_length : int, optional
+                    Window size for smoothing the defect trajectory before rendering. 
+                    Default is 61.
+
+    opacity : float, optional
+              Opacity of the tube representing each line. 
+              Ranges from 0 (transparent) to 1 (opaque). 
+              Default is 1.
+
+    radius : float, optional
+             Radius of the tube used to render each line. 
+             Default is 0.5.
+
+    color_input : tuple of three ints or None, optional
+                  A single RGB tuple to color all lines, or `None` to use the default colormap.
+                  The default colormap based on 'blue-red',
+                  with special designs trying to distinguish each line visually.
+                  Default is `None`.
+
+    specular : float, optional
+               Specular lighting intensity for visual effects. 
+               Default is 1.
+
+    specular_col : tuple of 3 floats, optional
+                   RGB values for the color of specular highlights. 
+                   Default is white (1, 1, 1).
+
+    specular_pow : float, optional
+                   Controls the sharpness of specular highlights. 
+                   Higher values result in smaller, sharper highlights. Default is 11.
+
+    outline_extent : list of 6 floats, optional
+                     Extent of the outline box in the format [xmin, xmax, ymin, ymax, zmin, zmax]. 
+                     If set to `None`, no outline is drawn. 
+                     Default is `None`.
+
+    Returns
+    -------
+    None
+        This function produces a Mayavi 3D visualization and does not return any value.
+
+    Dependencies
+    ------------
+    - NumPy: 1.26.4
+    - Mayavi: 4.8.2
+    '''
     
     from mayavi import mlab
 
@@ -661,9 +748,13 @@ def example_visualize_defects(lines, is_wrap=True, min_length=50, window_length=
     lines = sorted(lines, 
                    key=lambda line: line._defect_num,
                    reverse=True)
-    color_map = blue_red_in_white_bg()
-    color_map_length = np.shape(color_map)[0] - 1
-    lines_color = color_map[ (sample_far(len(lines))*color_map_length).astype(int)  ]
+    
+    if color_input is None:
+        color_map = blue_red_in_white_bg()
+        color_map_length = np.shape(color_map)[0] - 1
+        lines_color = color_map[ (sample_far(len(lines))*color_map_length).astype(int)  ]
+    else:
+        lines_color = [color_input for line in lines_color]   
 
     for i, line in enumerate(lines):
         if window_length != 0:
@@ -671,9 +762,11 @@ def example_visualize_defects(lines, is_wrap=True, min_length=50, window_length=
         line.figure_init(tube_color=tuple(lines_color[i]), is_new=1-bool(i), is_wrap=is_wrap,
                          tube_opacity=opacity, tube_radius=radius)
         line.figure_update(tube_spec=specular, tube_spec_col=specular_col, tube_spec_pow=specular_pow)
-    figure = mlab.gcf()
-    mlab.outline(figure=figure, color=(0,0,0), extent=outline_extent, line_width=4)
-    mlab.view(distance=450)
+
+    if outline_extent is not None:
+        figure = mlab.gcf()
+        mlab.outline(figure=figure, color=(0,0,0), extent=outline_extent, line_width=4)
+        mlab.view(distance=450)
         
 @time_record
 def example_visualize_defects_loops_init(lines, is_wrap=True, min_length=30, window_length=61, 
