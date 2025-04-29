@@ -213,7 +213,8 @@ class DisclinationLine:
 
     def figure_init(self, is_wrap=False, is_smooth=True,
                     tube_radius=0.5, tube_opacity=0.5, tube_color=(0.5,0.5,0.5), tube_sides=6,
-                    is_new=True, bgcolor=(1,1,1), fig_size=(1920, 1360)
+                    is_new=True, bgcolor=(1,1,1), fig_size=(1920, 1360),
+                    color_beta=True
                     ):
         #! plot_norm
         '''
@@ -235,6 +236,9 @@ class DisclinationLine:
             mlab.figure(bgcolor=bgcolor, size=fig_size)
 
         if not is_wrap:
+            # self.update_beta()
+            # figure = mlab.plot3d(*(points.T), self.beta,
+            #                         tube_radius=tube_radius, opacity=tube_opacity, tube_sides=tube_sides)
             figure = mlab.plot3d(*(line_coord.T), 
                                     tube_radius=tube_radius, opacity=tube_opacity, color=tube_color, 
                                     tube_sides=tube_sides)
