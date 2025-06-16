@@ -681,6 +681,7 @@ def example_visualize_defects(lines, is_wrap=True, min_length=50, window_length=
     with customizable visual properties including color, opacity, radius, and lighting effects. 
     Optionally, small loops could be excluded, and an outline box can be displayed around.
 
+    
     Parameters
     ----------
     lines : list
