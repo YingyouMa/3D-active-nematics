@@ -21,9 +21,9 @@ NATOMS 		= 50
 # Read the coordinates of each monomer and calculate some basic parameters
 # ------------------------------------------------------------------------
 
-def read_pos(frame, path, suffix):
+def read_pos(frame, path, prefix, suffix):
 
-    data, bounds = read_lammps(path+str(frame)+suffix)
+    data, bounds = read_lammps(path+prefix+str(frame)+suffix)
     data.sort_values(by='id', inplace=True)
     NUM_ATOMS = len(data)
     num_polys = np.max(data['mol'])
@@ -171,7 +171,7 @@ def IFFT_nematics(Fq, Fd=0, N_out=0, if_make_traceless=True):
 
 def coarse_one_frame(
                     address, save_path,
-                    stiffness, activity, name, frame, suffix='.data', 
+                    stiffness, activity, name, frame, prefix='', suffix='.data', 
                     N_raw=300, N_trunc=128, sdtn=0.9,
                     if_IFFT=True, sig=2, N_out=128,
                     diag_path=0
@@ -188,7 +188,7 @@ def coarse_one_frame(
         NX, NY, NZ = N_raw
 
     # Read the coordinates
-    r, LX, LY, LZ, length, num_polys, NUM_ATOMS = read_pos(frame, path, suffix)
+    r, LX, LY, LZ, length, num_polys, NUM_ATOMS = read_pos(frame, path, prefix, suffix)
 
     VOXEL = np.array([LX, LY, LZ]) / [NX, NY, NZ]
     sdt = sdtn * LX
@@ -253,8 +253,8 @@ def coarse_one_frame(
             np.save( diag_path + f"/{N_out}/n_{frame}.npy", n )
     
     # Zip the analyzed file
-    unzip_file  = path + str(frame) + suffix
-    zip_file    = path +'nov.' + str(frame) + suffix + '.gz'
+    unzip_file  = path + prefix + str(frame) + suffix
+    zip_file    = path + prefix + str(frame) + suffix + '.gz'
     with open(unzip_file, 'rb') as f_in:
         content = f_in.read()
     f = gzip.open( zip_file, 'wb')

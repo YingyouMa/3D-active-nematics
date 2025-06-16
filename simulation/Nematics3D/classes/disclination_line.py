@@ -217,6 +217,7 @@ class DisclinationLine:
                     color_beta=True
                     ):
         #! plot_norm
+        #! color_beta
         '''
 
         '''
